@@ -1,0 +1,12 @@
+diff --git a/target/linux/ipq40xx/image/Makefile b/target/linux/ipq40xx/image/Makefile
+index 4572ab461d..f03a7e5703 100644
+--- a/target/linux/ipq40xx/image/Makefile
++++ b/target/linux/ipq40xx/image/Makefile
+@@ -599,6 +599,7 @@ define Device/netgear_ex61x0v2
+ 	NETGEAR_HW_ID := 29765285+16+0+128+2x2
+ 	IMAGE_SIZE := 14400k
+ 	SOC := qcom-ipq4018
++	DEVICE_PACKAGES := -kmod-usb-dwc3-of-simple -kmod-usb3 -kmod-usb-dwc3 -kmod-usb-dwc3-qcom
+ endef
+ 
+ define Device/netgear_ex6100v2
