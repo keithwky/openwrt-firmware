@@ -47,16 +47,13 @@ jobs:
         sudo chown $USER:$GROUPS /workdir
 
     - name: Clone source code
-      working-directory: /workdir
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
-        ln -sf /workdir/openwrt $GITHUB_WORKSPACE/openwrt
 
     - name: Apply patches to base feed
+      working-directory: /openwrt
       run: |
-        cd openwrt
-        #echo -e "\n---- Applying patches to base feed ----\n"
         [ -d $GITHUB_WORKSPACE/patches/base ] && PATCHES="$( ls $GITHUB_WORKSPACE/patches/base/*.patch )"
         for i in $PATCHES; do
           echo -e "\n---- Applying patch $(basename $i) ----\n"
@@ -64,28 +61,27 @@ jobs:
         done
 
     - name: Update feeds
-      run: cd openwrt && ./scripts/feeds update -a
+      working-directory: /openwrt
+      run: ./scripts/feeds update -a
 
     - name: Apply patches to feeds
+      working-directory: /openwrt
       run: |
-        cd openwrt
-        ( 
-          for feed in $FEEDS; do
-            if [ -d "$GITHUB_WORKSPACE/openwrt/feeds/$feed" ] && [ -d "$GITHUB_WORKSPACE/patches/$feed" ]; then
-              echo -e "\n---- Applying patches to $feed feed ----\n"
-              ( 
-                cd "$GITHUB_WORKSPACE/openwrt/feeds/$feed";
-                  for i in $( ls "$GITHUB_WORKSPACE/patches/$feed"/*.patch ); do
-                    echo  -e "\n---- Applying patch $(basename $i) ----\n"
-                    git apply -v --whitespace=nowarn $i
-                  done 
-              )
-            fi
-          done
-        )
+        for feed in $FEEDS; do
+          if [ -d "$GITHUB_WORKSPACE/openwrt/feeds/$feed" ] && [ -d "$GITHUB_WORKSPACE/patches/$feed" ]; then
+            echo -e "\n---- Applying patches to $feed feed ----\n"
+            ( 
+              cd "$GITHUB_WORKSPACE/openwrt/feeds/$feed";
+                for i in $( ls "$GITHUB_WORKSPACE/patches/$feed"/*.patch ); do
+                  echo  -e "\n---- Applying patch $(basename $i) ----\n"
+                  git apply -v --whitespace=nowarn $i
+                done 
+            )
+          fi
+        done
 
     - name: Update & Install feeds
+      working-directory: /openwrt
       run: |
-        cd openwrt
         ./scripts/feeds update -i
         ./scripts/feeds install -a
