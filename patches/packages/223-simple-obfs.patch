@@ -1,0 +1,281 @@
+diff --git a/net/simple-obfs/Makefile b/net/simple-obfs/Makefile
+new file mode 100644
+index 00000000000..2f05f11 100644
+--- /dev/null
++++ b/net/simple-obfs/Makefile
+@@ -0,0 +1,79 @@
++#
++# Copyright (C) 2017 Jian Chang <aa65535@live.com>
++#
++# This is free software, licensed under the GNU General Public License v3.
++# See /LICENSE for more information.
++#
++
++include $(TOPDIR)/rules.mk
++
++PKG_NAME:=simple-obfs
++PKG_VERSION:=0.0.5
++PKG_RELEASE:=2
++
++PKG_SOURCE_PROTO:=git
++PKG_SOURCE_URL:=https://github.com/shadowsocks/simple-obfs.git
++PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_RELEASE)
++PKG_SOURCE_VERSION:=0c6ea880a49d712aa85ef5fa3acaf9ddceb6c421
++PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION)-$(PKG_SOURCE_VERSION).tar.gz
++PKG_MIRROR_HASH:=f1c08f47d7b832c2153435922a2187072dfc03cf406bd9fb00d360a56a773777
++
++PKG_LICENSE:=GPLv3
++PKG_LICENSE_FILES:=LICENSE
++PKG_MAINTAINER:=Jian Chang <aa65535@live.com>
++
++PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)/$(PKG_SOURCE_SUBDIR)
++
++PKG_INSTALL:=1
++PKG_FIXUP:=autoreconf
++PKG_USE_MIPS16:=0
++PKG_BUILD_PARALLEL:=1
++
++include $(INCLUDE_DIR)/package.mk
++
++define Package/simple-obfs-config
++	SECTION:=net
++	CATEGORY:=Network
++	TITLE:=simple-obfs config scripts
++	URL:=https://github.com/shadowsocks/simple-obfs
++endef
++
++define Package/simple-obfs-config/install
++	$(INSTALL_DIR) $(1)/etc/config
++	$(INSTALL_DATA) ./files/simple-obfs.config $(1)/etc/config/simple-obfs
++	$(INSTALL_DIR) $(1)/etc/init.d
++	$(INSTALL_BIN) ./files/simple-obfs.init $(1)/etc/init.d/simple-obfs
++endef
++
++define Package/simple-obfs/Default
++	SECTION:=net
++	CATEGORY:=Network
++	TITLE:=Simple-obfs
++	URL:=https://github.com/shadowsocks/simple-obfs
++	DEPENDS:=+libev +libpthread
++endef
++
++Package/simple-obfs = $(call Package/simple-obfs/Default)
++Package/simple-obfs-server = $(call Package/simple-obfs/Default)
++
++define Package/simple-obfs/description
++Simple-obfs is a simple obfusacting tool, designed as plugin server of shadowsocks.
++endef
++
++Package/simple-obfs-server/description = $(Package/simple-obfs/description)
++
++CONFIGURE_ARGS += --disable-ssp --disable-documentation --disable-assert
++
++define Package/simple-obfs/install
++	$(INSTALL_DIR) $(1)/usr/bin
++	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src/obfs-local $(1)/usr/bin
++endef
++
++define Package/simple-obfs-server/install
++	$(INSTALL_DIR) $(1)/usr/bin
++	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src/obfs-server $(1)/usr/bin
++endef
++
++$(eval $(call BuildPackage,simple-obfs))
++$(eval $(call BuildPackage,simple-obfs-server))
++$(eval $(call BuildPackage,simple-obfs-config))
+diff --git a/net/simple-obfs/files/simple-obfs.config b/net/simple-obfs/files/simple-obfs.config
+new file mode 100644
+index 00000000000..f3ef8ea 100644
+--- /dev/null
++++ b/net/simple-obfs/files/simple-obfs.config
+@@ -0,0 +1,21 @@
++
++config obfs_local 'obfsl'
++	option disabled '1'
++	option server 'www.example.com'
++	option server_port '8389'
++	option local_address '0.0.0.0'
++	option local_port '8388'
++	option fast_open '1'
++	option obfs 'tls'
++	option obfs_host 'www.example.com'
++	option timeout '60'
++
++config obfs_server 'obfss'
++	option disabled '1'
++	option server '0.0.0.0'
++	option server_port '8389'
++	option dst_addr '127.0.0.1:8388'
++	option fast_open '1'
++	option obfs 'tls'
++	option failover '127.0.0.1:443'
++	option timeout '60'
+diff --git a/net/simple-obfs/files/simple-obfs.init b/net/simple-obfs/files/simple-obfs.init
+new file mode 100644
+index 00000000000..f35bc8d 100644
+--- /dev/null
++++ b/net/simple-obfs/files/simple-obfs.init
+@@ -0,0 +1,163 @@
++#!/bin/sh /etc/rc.common
++#
++# Copyright (C) 2017 Yousong Zhou <yszhou4tech@gmail.com>
++#
++# This is free software, licensed under the GNU General Public License v3.
++# See /LICENSE for more information.
++#
++
++USE_PROCD=1
++START=99
++
++obfs_confdir=/var/etc/simple-obfs
++obfs_bindir=/usr/bin
++q='"'
++
++obfs_mkjson() {
++	echo "{" >"$confjson"
++	if obfs_mkjson_ "$@" >>$confjson; then
++		sed -i -e '/^\s*$/d' -e '2,$s/^/\t/' -e '$s/,$//' "$confjson"
++		echo "}" >>"$confjson"
++	else
++		rm -f "$confjson"
++		return 1
++	fi
++}
++
++obfs_mkjson_() {
++	local func
++
++	for func in "$@"; do
++		"$func" || return 1
++	done
++}
++
++obfs_mkjson_common_conf() {
++	[ "$fast_open" = 0 ] && fast_open=false || fast_open=true
++	cat <<-EOF
++		${server:+${q}server${q}: ${q}$server${q},}
++		"server_port": $server_port,
++		"fast_open": $fast_open,
++		${obfs:+${q}obfs${q}: ${q}$obfs${q},}
++		${obfs_host:+${q}obfs_host${q}: ${q}$obfs_host${q},}
++		${timeout:+${q}timeout${q}: $timeout,}
++		${user:+${q}user${q}: ${q}$user${q},}
++	EOF
++}
++
++obfs_mkjson_obfs_server_conf() {
++	[ "$ipv6_first" = 0 ] && ipv6_first=false || ipv6_first=true
++	cat <<-EOF
++		${dst_addr:+${q}dst_addr${q}: ${q}$dst_addr${q},}
++		${failover:+${q}failover${q}: ${q}$failover${q},}
++		"ipv6_first": $ipv6_first,
++		${nameserver:+${q}nameserver${q}: ${q}$nameserver${q},}
++	EOF
++}
++
++obfs_mkjson_obfs_local_conf() {
++	cat <<-EOF
++		${local_address:+${q}local_address${q}: ${q}$local_address${q},}
++		${local_port:+${q}local_port${q}: $local_port,}
++		${obfs_uri:+${q}obfs_uri${q}: ${q}$obfs_uri${q},}
++	EOF
++}
++
++obfs_xxx() {
++	local cfg="$1"
++	local cfgtype="$2"
++	local bin="$obfs_bindir/${cfgtype/_/-}"
++	local confjson="$obfs_confdir/$cfgtype.$cfg.json"
++
++	[ -x "$bin" ] || return
++	eval "$("validate_${cfgtype}_section" "$cfg" obfs_validate_mklocal)"
++	"validate_${cfgtype}_section" "$cfg" || return 1
++	[ "$disabled" = 0 ] || return
++
++	if obfs_mkjson \
++			obfs_mkjson_common_conf \
++			obfs_mkjson_${cfgtype}_conf \
++			; then
++		procd_open_instance "$cfgtype.$cfg"
++		procd_set_param command "$bin" -c "$confjson"
++		[ "$verbose" = 0 ] || procd_append_param command -v
++		[ -z "$bind_address" ] || procd_append_param command -b "$bind_address"
++		procd_set_param file "$confjson"
++		procd_set_param respawn
++		procd_set_param stdout 1
++		procd_set_param stderr 1
++		procd_close_instance
++	fi
++}
++
++start_service() {
++	local cfgtype
++
++	mkdir -p "$obfs_confdir"
++	config_load simple-obfs
++	for cfgtype in obfs_local obfs_server; do
++		config_foreach obfs_xxx "$cfgtype" "$cfgtype"
++	done
++}
++
++stop_service() {
++	rm -rf "$obfs_confdir"
++}
++
++service_triggers() {
++	PROCD_RELOAD_DELAY=2000
++	procd_add_interface_trigger "interface.*.up" "wan" /etc/init.d/simple-obfs reload
++	procd_add_reload_trigger simple-obfs
++	procd_open_validate
++	validate_obfs_local_section
++	validate_obfs_server_section
++	procd_close_validate
++}
++
++obfs_validate_mklocal() {
++	local tuple opts
++
++	shift 2
++	for tuple in "$@"; do
++		opts="${tuple%%:*} $opts"
++	done
++	[ -z "$opts" ] || echo "local $opts"
++}
++
++obfs_validate() {
++	uci_validate_section simple-obfs "$@"
++}
++
++validate_common_options_() {
++	local cfgtype="$1"; shift
++	local cfg="$1"; shift
++	local func="$1"; shift
++
++	"${func:-obfs_validate}" "$cfgtype" "$cfg" "$@" \
++		'disabled:bool:0' \
++		'server:host' \
++		'server_port:port' \
++		'fast_open:bool:0' \
++		'verbose:bool:0' \
++		'obfs:or("http", "tls"):tls' \
++		'obfs_host:host' \
++		'timeout:uinteger' \
++		'user:string'
++}
++
++validate_obfs_server_section() {
++	validate_common_options_ obfs_server "$1" \
++		"$2" \
++		'dst_addr:regex(".+\:[0-9]+")' \
++		'failover:regex(".+\:[0-9]+")' \
++		'ipv6_first:bool:0' \
++		'nameserver:ipaddr'
++}
++
++validate_obfs_local_section() {
++	validate_common_options_ obfs_local "$1" \
++		"$2" \
++		'local_address:host:0.0.0.0' \
++		'local_port:port' \
++		'obfs_uri:string'
++}
