@@ -39,6 +39,13 @@ jobs:
         key: Sources
         update: True
 
+    - name: Cache config
+      uses: davidsbond/cache@master
+      with:
+        path: config/
+        key: ${{ matrix.device }}
+        update: True
+
     - name: Initialization environment
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -102,13 +109,33 @@ jobs:
             cat "$GITHUB_WORKSPACE/$i" >> .config.init
           fi
         done
-        cp .config.init .config
+        cp -fpR .config.init .config
         make defconfig
+        ./scripts/diffconfig.sh > .diffconfig
 
         #echo -e "\n---- config post-defconfig ----\n"
         #cat .config
         #echo -e "\n---- config post-defconfig ----\n"
 
-        echo -e "\n---- diffconfig ----\n"
-        ./scripts/diffconfig.sh
-        echo -e "\n---- diffconfig ----\n"
+        #echo -e "\n---- diffconfig ----\n"
+        #cat .diffconfig
+        #echo -e "\n---- diffconfig ----\n"
+
+        mkdir -p $GITHUB_WORKSPACE/config
+        if [ -f "$GITHUB_WORKSPACE/config/${{ matrix.device }}.config" ]; then
+          diff -uprN "$GITHUB_WORKSPACE/config/${{ matrix.device }}.config" .config > .config.diff
+          echo -e "\n---- config diff ----\n"
+          cat .config.diff
+          echo -e "\n---- config diff ----\n"
+          cp -fpR .config.diff $GITHUB_WORKSPACE/config/${{ matrix.device }}.config.diff
+        fi
+        if [ -f "$GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig" ]; then
+          diff -uprN "$GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig" .diffconfig > .diffconfig.diff
+          echo -e "\n---- diffconfig diff ----\n"
+          cat .diffconfig.diff
+          echo -e "\n---- diffconfig diff ----\n"
+          cp -fpR .diffconfig.diff $GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig.diff
+        fi
+        
+        cp -fpR .config $GITHUB_WORKSPACE/config/${{ matrix.device }}.config
+        cp -fpR .diffconfig $GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig
