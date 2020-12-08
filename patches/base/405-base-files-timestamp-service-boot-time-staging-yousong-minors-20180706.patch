@@ -1,0 +1,24 @@
+From fe38d5840f3e6ea3e099210c4f447ae5ee095823 Mon Sep 17 00:00:00 2001
+From: Yousong Zhou <yszhou4tech@gmail.com>
+Date: Fri, 6 Jul 2018 14:51:34 +0800
+Subject: [PATCH] base-files: timestamp service boot time
+
+Signed-off-by: Yousong Zhou <yszhou4tech@gmail.com>
+---
+ package/base-files/files/etc/rc.common | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/package/base-files/files/etc/rc.common b/package/base-files/files/etc/rc.common
+index 3e237170b4..fe273ea194 100755
+--- a/package/base-files/files/etc/rc.common
++++ b/package/base-files/files/etc/rc.common
+@@ -28,6 +28,7 @@ restart() {
+ }
+ 
+ boot() {
++	echo "$initscript $action $@" >/dev/kmsg
+ 	start "$@"
+ }
+ 
+-- 
+2.17.0
