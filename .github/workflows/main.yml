@@ -32,20 +32,6 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Cache sources
-      uses: davidsbond/cache@master
-      with:
-        path: dl/
-        key: Sources
-        update: True
-
-    - name: Cache config
-      uses: davidsbond/cache@master
-      with:
-        path: config/
-        key: ${{ matrix.device }}
-        update: True
-
     - name: Initialization environment
       env:
         DEBIAN_FRONTEND: noninteractive
@@ -59,6 +45,7 @@ jobs:
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
+        mkdir -p dl
 
     - name: Save version info
       working-directory: openwrt
@@ -128,24 +115,100 @@ jobs:
         #echo -e "\n---- config post-defconfig ----\n"
 
         #echo -e "\n---- diffconfig ----\n"
-        #cat .diffconfig
+        cat .diffconfig
         #echo -e "\n---- diffconfig ----\n"
 
         mkdir -p $GITHUB_WORKSPACE/config
-        if [ -f "$GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig" ]; then
-          diff -uprN "$GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig" .diffconfig > .diffconfig.diff
-          echo -e "\n---- diffconfig diff ----\n"
-          cat .diffconfig.diff
-          echo -e "\n---- diffconfig diff ----\n"
-          cp -fpR .diffconfig.diff $GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig.diff
-        fi
-        if [ -f "$GITHUB_WORKSPACE/config/${{ matrix.device }}.config" ]; then
-          diff -uprN "$GITHUB_WORKSPACE/config/${{ matrix.device }}.config" .config > .config.diff
-          echo -e "\n---- config diff ----\n"
-          cat .config.diff
-          echo -e "\n---- config diff ----\n"
-          cp -fpR .config.diff $GITHUB_WORKSPACE/config/${{ matrix.device }}.config.diff
-        fi
-        
         cp -fpR .config $GITHUB_WORKSPACE/config/${{ matrix.device }}.config
         cp -fpR .diffconfig $GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig
+
+    - name: Download package
+      run: |
+        make download -j$(nproc)
+
+    - name: Build tools
+      run: |
+        make tools/install -j$(nproc) || \
+          make tools/install V=s
+
+    - name: Build toolchain
+      run: |
+        make toolchain/install -j$(nproc) || \
+          make toolchain/install V=s
+
+    - name: Build target
+      run: |
+        make target/compile -j$(nproc) IGNORE_ERRORS='n m' || \
+          make target/compile IGNORE_ERRORS='n m' V=s
+
+    - name: Build packages
+      run: |
+        make package/compile -j$(nproc) IGNORE_ERRORS='n m' || \
+          make package/compile IGNORE_ERRORS='n m' V=s
+
+        make package/install -j$(nproc) || \
+          make package/install V=s
+
+        make package/index V=s
+
+    - name: Build firmware
+      run: |
+        make target/install -j$(nproc) || \
+          make target/install V=s
+
+    - name: Buildinfo
+      run: |
+        make buildinfo V=s
+
+    - name: JSON overview
+      run: |
+        make json_overview_image_info V=s
+
+    - name: Checksum
+      run: |
+        make checksum V=s
+
+    - name: Sanitize target
+      run: echo "target_sani=${{ env.TARGET }}-${{ env.SUBTARGET }}" >> "$GITHUB_ENV"
+
+    - name: Upload images
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ env.target_sani }}-images
+        path: bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/openwrt-${{ env.TARGET }}-*
+
+    - name: Upload packages
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ env.target_sani }}-packages
+        path: |
+          bin/**/*.ipk
+          !bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
+
+    - name: Upload kmods
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ env.target_sani }}-kmods
+        path: bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
+
+    - name: Upload supplementary
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ env.target_sani }}-supplementary
+        path: |
+          bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.buildinfo
+          bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.json
+          bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.manifest
+          bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/sha256sums*
+
+    - name: Upload logs
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ env.target_sani }}-logs
+        path: logs/
+
+    - name: Upload config
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ env.target_sani }}-config
+        path: config/
