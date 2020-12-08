@@ -123,25 +123,30 @@ jobs:
         cp -fpR .diffconfig $GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig
 
     - name: Download package
+      working-directory: openwrt
       run: |
         make download -j$(nproc)
 
     - name: Build tools
+      working-directory: openwrt
       run: |
         make tools/install -j$(nproc) || \
           make tools/install V=s
 
     - name: Build toolchain
+      working-directory: openwrt
       run: |
         make toolchain/install -j$(nproc) || \
           make toolchain/install V=s
 
     - name: Build target
+      working-directory: openwrt
       run: |
         make target/compile -j$(nproc) IGNORE_ERRORS='n m' || \
           make target/compile IGNORE_ERRORS='n m' V=s
 
     - name: Build packages
+      working-directory: openwrt
       run: |
         make package/compile -j$(nproc) IGNORE_ERRORS='n m' || \
           make package/compile IGNORE_ERRORS='n m' V=s
@@ -152,19 +157,23 @@ jobs:
         make package/index V=s
 
     - name: Build firmware
+      working-directory: openwrt
       run: |
         make target/install -j$(nproc) || \
           make target/install V=s
 
     - name: Buildinfo
+      working-directory: openwrt
       run: |
         make buildinfo V=s
 
     - name: JSON overview
+      working-directory: openwrt
       run: |
         make json_overview_image_info V=s
 
     - name: Checksum
+      working-directory: openwrt
       run: |
         make checksum V=s
 
@@ -175,37 +184,37 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-images
-        path: bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/openwrt-${{ env.TARGET }}-*
+        path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/openwrt-${{ env.TARGET }}-*
 
     - name: Upload packages
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-packages
         path: |
-          bin/**/*.ipk
-          !bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
+          openwrt/bin/**/*.ipk
+          !openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
 
     - name: Upload kmods
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-kmods
-        path: bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
+        path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
 
     - name: Upload supplementary
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-supplementary
         path: |
-          bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.buildinfo
-          bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.json
-          bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.manifest
-          bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/sha256sums*
+          openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.buildinfo
+          openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.json
+          openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.manifest
+          openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/sha256sums*
 
     - name: Upload logs
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-logs
-        path: logs/
+        path: openwrt/logs/
 
     - name: Upload config
       uses: actions/upload-artifact@v2
