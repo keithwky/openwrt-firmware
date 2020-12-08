@@ -1,0 +1,543 @@
+name: Build OpenWrt snapshot
+
+on:
+  workflow_dispatch:
+
+env:
+  WORKFLOW_NAME: "build.yml"
+  REPO_BRANCH: master
+  OPENWRT_REPO: openwrt/openwrt
+  OPENWRT_REPO_BRANCH: master
+  FEEDS: "packages luci routing telephony freifunk waller"
+  BUILD_APPLYPATCH: true
+  BUILD_PREPARE: true
+  BUILD_COMPILE: true
+
+jobs:
+  get_version:
+    name: Retrieve version info
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ env.REPO_BRANCH }}
+        fetch-depth: 1
+        path: openwrt-firmware
+
+    - name: Checkout OpenWrt repo
+      uses: actions/checkout@v2
+      with:
+        repository: ${{ env.OPENWRT_REPO }}
+        ref: ${{ env.OPENWRT_REPO_BRANCH }}
+        fetch-depth: 1
+        path: openwrt
+
+    - name: Retrieve commit ids
+      run: |
+        mkdir -p version
+        echo $(date -u +%Y%m%d-%H%M%S) > version/timestamp
+        echo $(cd openwrt-firmware; git rev-parse --short=10 HEAD) > version/commitid
+        echo $(cd openwrt; git rev-parse --short=10 HEAD) > version/openwrt_commitid
+
+        echo "timestamp :         $(cat version/timestamp)"
+        echo "commitid :          $(cat version/commitid)"
+        echo "openwrt_commitid :  $(cat version/openwrt_commitid)"
+
+    - name: Upload version
+      uses: actions/upload-artifact@v2
+      with:
+        name: openwrt-version
+        path: version/
+
+  prepare:
+    name: Prepare OpenWrt repo
+    needs: [get_version]
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Download version
+      uses: actions/download-artifact@v2
+      with:
+        name: openwrt-version
+        path: version/
+
+    - name: Initialization environment
+      working-directory: version
+      run: |
+        echo "TIMESTAMP=$(cat timestamp)" >> $GITHUB_ENV
+        echo "COMMITID=$(cat commitid)" >> $GITHUB_ENV
+        echo "OPENWRT_COMMITID=$(cat openwrt_commitid)" >> $GITHUB_ENV
+        
+        echo "timestamp :         $(cat timestamp)"
+        echo "commitid :          $(cat commitid)"
+        echo "openwrt_commitid :  $(cat openwrt_commitid)"
+
+    - name: Checkout repo
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ env.REPO_BRANCH }}
+        fetch-depth: 1
+        path: openwrt-firmware
+
+    - name: Switch to commit
+      working-directory: openwrt-firmware
+      run: git checkout ${{ env.COMMITID }}
+
+    - name: Cache openwrt folder
+      uses: actions/cache@v2
+      with:
+        path: openwrt/
+        key: openwrt-${{ env.OPENWRT_COMMITID }}-${{ env.COMMITID }}
+
+    - name: Checkout OpenWrt repo
+      uses: actions/checkout@v2
+      with:
+        repository: ${{ env.OPENWRT_REPO }}
+        ref: ${{ env.OPENWRT_REPO_BRANCH }}
+        fetch-depth: 0
+        path: openwrt
+
+    - name: Retrieve OpenWrt Version
+      working-directory: openwrt
+      run: |
+        git checkout "${{ env.OPENWRT_COMMITID }}"
+        VERSION=$(./scripts/getver.sh | sed -n 's/^\(r[0-9]\+\)-.*/\1/p')
+
+        cd $GITHUB_WORKSPACE/version
+        echo "${{ env.OPENWRT_REPO_BRANCH }}-$VERSION" > openwrt_version
+        
+        echo "openwrt_version :   $(cat openwrt_version)"
+
+    - name: Upload version
+      uses: actions/upload-artifact@v2
+      with:
+        name: openwrt-version
+        path: version/openwrt_version
+
+    - name: Retrieve previous release info
+      id: openwrt_previous_version
+      working-directory: openwrt
+      run: |
+        URL="https://api.github.com/repos/$GITHUB_REPOSITORY/releases"
+        JSON=$(curl --url "$URL" \
+          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+          --header 'content-type: application/json' \
+          | jq -c '[ .[] | select( .name | contains("'"${{ env.OPENWRT_REPO_BRANCH }}"'")) ][0]' 2>/dev/null)
+        RELEASE=$(echo $JSON | jq -r '.name' 2>/dev/null)
+        TAGNAME=$(echo $JSON | jq -r '.tag_name' 2>/dev/null)
+        echo "openwrt_previous_release :    $RELEASE"
+        echo "openwrt_previous_tagname :    $TAGNAME"
+
+        [ -z "$RELEASE" ] || VERSION=$(echo "$RELEASE" \
+          | sed -ne "s#^${{ env.OPENWRT_REPO_BRANCH }}-\(r[0-9]\+\)-[0-9]\{8\}-[0-9]\{6\}#\1#p")
+        echo "openwrt_previous_version :    $VERSION"
+
+        [ -z "$VERSION" ] || COMMITID=$(./scripts/getver.sh "$VERSION")
+        echo "openwrt_previous_commitid :   $COMMITID"
+
+        if [ ! -z "$COMMITID" ] && [ "$COMMITID" != "unknown" ]; then
+          COMMITID=$(git rev-parse --short=10 "$COMMITID")
+          TIMESTAMP=$(echo "$RELEASE" \
+            | sed -n "s#^${{ env.OPENWRT_REPO_BRANCH }}-r[0-9]\+-\([0-9]\{8\}-[0-9]\{6\}\)#\1#p")
+
+          cd $GITHUB_WORKSPACE/version
+          echo "$TAGNAME" > openwrt_previous_tagname
+          echo "${{ env.OPENWRT_REPO_BRANCH }}-$VERSION" > openwrt_previous_version
+          echo "$TIMESTAMP" > openwrt_previous_timestamp
+          echo "$COMMITID" > openwrt_previous_commitid
+
+          echo "OPENWRT_PREV_TAGNAME=$TAGNAME" >> $GITHUB_ENV
+          echo "OPENWRT_PREV_VERSION=${{ env.OPENWRT_REPO_BRANCH }}-$VERSION" >> $GITHUB_ENV
+          echo "OPENWRT_PREV_TIMESTAMP=$TIMESTAMP" >> $GITHUB_ENV
+          echo "OPENWRT_PREV_COMMITID=$COMMITID" >> $GITHUB_ENV
+
+          echo "::set-output name=previous_version::true"
+          echo "openwrt_previous_tagname :    $(cat openwrt_previous_tagname)"
+          echo "openwrt_previous_version :    $(cat openwrt_previous_version)"
+          echo "openwrt_previous_timestamp :  $(cat openwrt_previous_timestamp)"
+          echo "openwrt_previous_commitid :   $(cat openwrt_previous_commitid)"
+        fi
+
+    - name: Upload previous release info
+      if: steps.openwrt_previous_version.outputs.previous_version == 'true'
+      uses: actions/upload-artifact@v2
+      with:
+        name: openwrt-version
+        path: |
+          version/openwrt_previous_tagname
+          version/openwrt_previous_version
+          version/openwrt_previous_timestamp
+          version/openwrt_previous_commitid
+
+    - name: Download previous feeds.buildinfo
+      if: steps.openwrt_previous_version.outputs.previous_version == 'true'
+      uses: Xotl/cool-github-releases@v1
+      with:
+        mode: download
+        tag_name: ${{ env.OPENWRT_PREV_TAGNAME }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        assets: openwrt-feeds.buildinfo|version/openwrt-feeds.buildinfo
+
+    - name: Apply patches to base feed
+      if: env.BUILD_APPLYPATCH == 'true'
+      working-directory: openwrt
+      run: |
+        PATCH_DIR="$GITHUB_WORKSPACE/openwrt-firmware/patches"
+        [ -d "$PATCH_DIR/base" ] && PATCHES="$( ls "$PATCH_DIR/base/"*.patch )"
+        for i in $PATCHES; do
+          echo -e "\n---- Applying patch $(basename "$i") ----\n"
+          git apply -v --whitespace=nowarn "$i"
+        done
+
+    - name: Update feeds
+      working-directory: openwrt
+      run: ./scripts/feeds update -a
+
+    - name: Apply patches to feeds
+      if: env.BUILD_APPLYPATCH == 'true'
+      working-directory: openwrt
+      run: |
+        FEED_DIR="$GITHUB_WORKSPACE/openwrt/feeds"
+        PATCH_DIR="$GITHUB_WORKSPACE/openwrt-firmware/patches"
+        for feed in $FEEDS; do
+          if [ -d "$FEED_DIR/$feed" ] && [ -d "$PATCH_DIR/$feed" ]; then
+            echo -e "\n---- Applying patches to $feed feed ----\n"
+            ( 
+              cd "$FEED_DIR/$feed";
+                for i in $( ls "$PATCH_DIR/$feed/"*.patch ); do
+                  echo  -e "\n---- Applying patch $(basename "$i") ----\n"
+                  git apply -v --whitespace=nowarn "$i"
+                done 
+            )
+          fi
+        done
+
+    - name: Update & Install feeds
+      working-directory: openwrt
+      run: |
+        ./scripts/feeds update -i
+        ./scripts/feeds install -a
+
+    - name: Generate changelog
+      if: steps.openwrt_previous_version.outputs.previous_version == 'true'
+      working-directory: openwrt
+      run: |
+        LOGFILE="$GITHUB_WORKSPACE/version/openwrt_changelog"
+        BUILDINFO="$GITHUB_WORKSPACE/version/openwrt-feeds.buildinfo"
+        FEED_DIR="$GITHUB_WORKSPACE/openwrt/feeds"
+        GIT_SHOW_LOG="git --no-pager log --pretty=oneline --abbrev-commit --no-merges --no-decorate"
+
+        TIMESTAMP=$(echo "${{ env.OPENWRT_PREV_TIMESTAMP }}" \
+          | sed -n "s#\([0-9]\{4\}\)\([0-9]\{2\}\)\([0-9]\{2\}\)-\([0-9]\{2\}\)\([0-9]\{2\}\)\([0-9]\{2\}\)#\1-\2-\3 \4:\5:\6#p")
+        TIMESTAMP=$(date "+%s" -d "$TIMESTAMP")
+
+        echo -e "\n---- Logs for main feed ----\n" > "$LOGFILE"
+        $GIT_SHOW_LOG "${{ env.OPENWRT_PREV_COMMITID }}^1..${{ env.OPENWRT_COMMITID }}" >> "$LOGFILE"
+
+        for feed in $FEEDS; do
+          if [ -d "$FEED_DIR/$feed" ]; then
+            echo -e "\n---- Logs for $feed feed ----\n" >> "$LOGFILE"
+            ( 
+              cd "$FEED_DIR/$feed";
+              echo "$feed"
+              [ -f "$(git rev-parse --git-dir)"/shallow ] && git fetch --unshallow
+              COMMITID=$(cat "$BUILDINFO" | sed -n "s#^src-git $feed .*\^\(.\{7\}\)#\1#p" 2>/dev/null)
+              echo "PREV_COMMITID :  $COMMITID"
+              [ -z "$COMMITID" ] || $GIT_SHOW_LOG "$COMMITID..HEAD" >> "$LOGFILE"
+            )
+          fi
+        done
+        cat "$LOGFILE"
+
+    - name: Upload changelog
+      if: steps.openwrt_previous_version.outputs.previous_version == 'true'
+      uses: actions/upload-artifact@v2
+      with:
+        name: openwrt-version
+        path: version/openwrt_changelog
+
+  build:
+    name: Build ${{ matrix.device }}
+    needs: [prepare]
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: False
+      matrix:
+        include:
+          - device: "netgear_r7800"
+            target: "ipq806x"
+            subtarget: "generic"
+            config: "R7800"
+          - device: "netgear_ex6150v2"
+            target: "ipq40xx"
+            subtarget: "generic"
+            config: "EX6150v2"
+
+    steps:
+    - name: Download version
+      if: env.BUILD_PREPARE == 'true'
+      uses: actions/download-artifact@v2
+      with:
+        name: openwrt-version
+        path: version/
+
+    - name: Initialization environment
+      id: init_env
+      if: env.BUILD_PREPARE == 'true'
+      working-directory: version
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo apt-get -y install libncurses-dev
+
+        echo "TARGET=${{ matrix.target }}" >> "$GITHUB_ENV"
+        echo "SUBTARGET=${{ matrix.subtarget }}" >> "$GITHUB_ENV"
+
+        echo "TIMESTAMP=$(cat timestamp)" >> $GITHUB_ENV
+        echo "COMMITID=$(cat commitid)" >> $GITHUB_ENV
+        echo "OPENWRT_COMMITID=$(cat openwrt_commitid)" >> $GITHUB_ENV
+        echo "OPENWRT_VERSION=$(cat openwrt_version)" >> $GITHUB_ENV
+        
+        if [ -f openwrt_previous_tagname ]; then
+          echo "OPENWRT_PREV_TAGNAME=$(cat openwrt_previous_tagname)" >> $GITHUB_ENV
+          echo "openwrt_previous_tagname :    $(cat openwrt_previous_tagname)"
+          mkdir -p "$GITHUB_WORKSPACE/previous_config"
+          echo "::set-output name=previous_version::true"
+        fi
+        
+        echo "timestamp :         $(cat timestamp)"
+        echo "commitid :          $(cat commitid)"
+        echo "openwrt_commitid :  $(cat openwrt_commitid)"
+        echo "openwrt_version :   $(cat openwrt_version)"
+
+    - name: Checkout repo
+      if: env.BUILD_PREPARE == 'true'
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ env.REPO_BRANCH }}
+        fetch-depth: 1
+        path: openwrt-firmware
+
+    - name: Switch to commit
+      if: env.BUILD_PREPARE == 'true'
+      working-directory: openwrt-firmware
+      run: git checkout ${{ env.COMMITID }}
+
+    - name: Cache openwrt folder
+      if: env.BUILD_PREPARE == 'true'
+      uses: actions/cache@v2
+      with:
+        path: openwrt/
+        key: openwrt-${{ env.OPENWRT_COMMITID }}-${{ env.COMMITID }}
+
+    - name: Cache sources
+      id: cache-dl
+      if: env.BUILD_PREPARE == 'true'
+      uses: actions/cache@v2
+      with:
+        path: dl/
+        key: downloads-${{ matrix.device }}-${{ env.OPENWRT_COMMITID }}
+
+    - name: Load previous cache
+      if: env.BUILD_PREPARE == 'true' && steps.cache-dl.outputs.cache-hit != 'true'
+      uses: actions/cache@v2
+      with: 
+        path: dl/
+        key: downloads-${{ matrix.device }}
+
+    - name: Set configuration
+      if: env.BUILD_PREPARE == 'true'
+      working-directory: openwrt
+      env:
+        CONFIG_FILES: "common_hnyman.config.init common_override.config.init ${{ matrix.config }}.config.init"
+      run: |
+        OPENWRT_TARGET="openwrt-${{ matrix.target }}-${{ matrix.subtarget }}"
+        CONFIG_DIR="$GITHUB_WORKSPACE/config"
+
+        curl "https://downloads.openwrt.org/snapshots/targets/${{ matrix.target }}/${{ matrix.subtarget }}/config.buildinfo" > .config
+
+        echo -e "\n# Use "make defconfig" to expand this to a full .config\n\n" > .config.init
+        for i in $CONFIG_FILES; do
+          if [ -f "$GITHUB_WORKSPACE/openwrt-firmware/$i" ]; then
+            echo -e "\n\n\n## $i ##\n\n" >> .config.init
+            cat "$GITHUB_WORKSPACE/openwrt-firmware/$i" >> .config.init
+          fi
+        done
+        cp -fpR .config.init .config
+        make defconfig
+        ./scripts/diffconfig.sh > .diffconfig
+
+        #echo -e "\n---- config post-defconfig ----\n"
+        #cat .config
+        #echo -e "\n---- config post-defconfig ----\n"
+
+        #echo -e "\n---- diffconfig ----\n"
+        cat .diffconfig
+        #echo -e "\n---- diffconfig ----\n"
+
+        mkdir -p "$CONFIG_DIR"
+        cp -fpR .config "$CONFIG_DIR/$OPENWRT_TARGET.config"
+        cp -fpR .diffconfig "$CONFIG_DIR/$OPENWRT_TARGET.diffconfig"
+
+    - name: Download previous config
+      if: env.BUILD_PREPARE == 'true' && steps.init_env.outputs.previous_version == 'true'
+      uses: Xotl/cool-github-releases@v1
+      with:
+        mode: download
+        tag_name: ${{ env.OPENWRT_PREV_TAGNAME }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        assets: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config|previous_config/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config;openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-config.buildinfo|previous_config/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.diffconfig
+
+    - name: Diff previous config
+      if: env.BUILD_PREPARE == 'true' && steps.init_env.outputs.previous_version == 'true'
+      working-directory: previous_config
+      run: |
+        OPENWRT_TARGET="openwrt-${{ matrix.target }}-${{ matrix.subtarget }}"
+        CONFIG_DIR="../config"
+
+        echo -e "\n---- config.diff ----\n"
+        [ -f "$OPENWRT_TARGET.config" ] && \
+          diff -uprN "$OPENWRT_TARGET.config" \
+            --label "a/$OPENWRT_TARGET.config" \
+            --label "b/$OPENWRT_TARGET.config" \
+            "$CONFIG_DIR/$OPENWRT_TARGET.config" 2>/dev/null \
+          | tee "$CONFIG_DIR/$OPENWRT_TARGET.config.diff"
+        echo -e "\n---- config.diff ----\n"
+
+        echo -e "\n---- diffconfig.diff ----\n"
+        [ -f "$OPENWRT_TARGET.diffconfig" ] && \
+          diff -uprN "$OPENWRT_TARGET.diffconfig" \
+            --label "a/$OPENWRT_TARGET.diffconfig" \
+            --label "b/$OPENWRT_TARGET.diffconfig" \
+            "$CONFIG_DIR/$OPENWRT_TARGET.diffconfig" 2>/dev/null \
+          | tee "$CONFIG_DIR/$OPENWRT_TARGET.diffconfig.diff"
+        echo -e "\n---- diffconfig.diff ----\n"
+
+    - name: Download package
+      if: env.BUILD_PREPARE == 'true'
+      working-directory: openwrt
+      run: |
+        make download -j$(nproc)
+
+    - name: Build tools
+      if: env.BUILD_COMPILE == 'true'
+      working-directory: openwrt
+      run: |
+        make tools/install -j$(nproc) || \
+          make tools/install V=s
+
+    - name: Build toolchain
+      if: env.BUILD_COMPILE == 'true'
+      working-directory: openwrt
+      run: |
+        make toolchain/install -j$(nproc) || \
+          make toolchain/install V=s
+
+    - name: Build target
+      if: env.BUILD_COMPILE == 'true'
+      working-directory: openwrt
+      run: |
+        make target/compile -j$(nproc) IGNORE_ERRORS='n m' || \
+          make target/compile IGNORE_ERRORS='n m' V=s
+
+    - name: Buildinfo
+      if: env.BUILD_COMPILE == 'true'
+      working-directory: openwrt
+      run: |
+        make buildinfo V=s
+
+    - name: Build packages
+      if: env.BUILD_COMPILE == 'true'
+      working-directory: openwrt
+      run: |
+        make package/compile -j$(nproc) IGNORE_ERRORS='n m' || \
+          make package/compile IGNORE_ERRORS='n m' V=s
+
+        make package/install -j$(nproc) || \
+          make package/install V=s
+
+        make package/index V=s
+
+    - name: Build firmware
+      if: env.BUILD_COMPILE == 'true'
+      working-directory: openwrt
+      run: |
+        make target/install -j$(nproc) || \
+          make target/install V=s
+
+    - name: JSON overview
+      if: env.BUILD_COMPILE == 'true'
+      working-directory: openwrt
+      run: |
+        make json_overview_image_info V=s
+
+    - name: Rename buildinfo
+      if: env.BUILD_COMPILE == 'true'
+      working-directory: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/
+      run: |
+        mv -f config.buildinfo "openwrt-${{ env.TARGET }}-${{ env.SUBTARGET }}-config.buildinfo"
+        mv -f feeds.buildinfo openwrt-feeds.buildinfo
+        mv -f version.buildinfo openwrt-version.buildinfo
+
+    - name: Checksum
+      if: env.BUILD_COMPILE == 'true'
+      working-directory: openwrt
+      run: |
+        make checksum V=s
+
+    - name: Rename sha256sums
+      if: env.BUILD_COMPILE == 'true'
+      working-directory: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/
+      run: |
+        mv -f sha256sums "openwrt-${{ env.TARGET }}-${{ env.SUBTARGET }}-sha256sums"
+
+    - name: Sanitize target
+      run: echo "target_sani=${{ env.TARGET }}-${{ env.SUBTARGET }}" >> "$GITHUB_ENV"
+
+    - name: Upload images
+      if: env.BUILD_COMPILE == 'true'
+      uses: actions/upload-artifact@v2
+      with:
+        name: openwrt-${{ env.target_sani }}-images
+        path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/openwrt-${{ env.TARGET }}-*
+
+    - name: Upload packages
+      if: env.BUILD_COMPILE == 'true'
+      uses: actions/upload-artifact@v2
+      with:
+        name: openwrt-${{ env.target_sani }}-packages
+        path: |
+          openwrt/bin/**/*.ipk
+          !openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
+
+    - name: Upload kmods
+      if: env.BUILD_COMPILE == 'true'
+      uses: actions/upload-artifact@v2
+      with:
+        name: openwrt-${{ env.target_sani }}-kmods
+        path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
+
+    - name: Upload supplementary
+      if: env.BUILD_COMPILE == 'true'
+      uses: actions/upload-artifact@v2
+      with:
+        name: openwrt-${{ env.target_sani }}-supplementary
+        path: |
+          openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.buildinfo
+          openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.json
+          openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.manifest
+          openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*sha256sums*
+
+    - name: Upload logs
+      if: env.BUILD_COMPILE == 'true'
+      uses: actions/upload-artifact@v2
+      with:
+        name: openwrt-${{ env.target_sani }}-logs
+        path: openwrt/logs/
+
+    - name: Upload config
+      if: env.BUILD_PREPARE == 'true'
+      uses: actions/upload-artifact@v2
+      with:
+        name: openwrt-${{ env.target_sani }}-config
+        path: config/
