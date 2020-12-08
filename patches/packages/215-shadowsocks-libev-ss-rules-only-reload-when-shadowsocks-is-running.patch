@@ -1,0 +1,9 @@
+diff --git a/net/shadowsocks-libev/files/firewall.ss-rules b/net/shadowsocks-libev/files/firewall.ss-rules
+index 3a1d32cdc..16a75da45 100644
+--- a/net/shadowsocks-libev/files/firewall.ss-rules
++++ b/net/shadowsocks-libev/files/firewall.ss-rules
+@@ -1,2 +1,2 @@
+ #!/bin/sh
+-/etc/init.d/shadowsocks-libev reload
++/etc/init.d/shadowsocks-libev running && /etc/init.d/shadowsocks-libev reload || exit 0
+
