@@ -87,3 +87,28 @@ jobs:
       run: |
         ./scripts/feeds update -i
         ./scripts/feeds install -a
+
+    - name: Set configuration
+      working-directory: openwrt
+      env:
+        CONFIG_FILES: "common_hnyman.config.init common_override.config.init ${{ matrix.config }}.config.init"
+      run: |
+        curl "https://downloads.openwrt.org/snapshots/targets/${{ matrix.target }}/${{ matrix.subtarget }}/config.buildinfo" > .config
+
+        echo -e "\n# Use "make defconfig" to expand this to a full .config\n\n" > .config.init
+        for i in $CONFIG_FILES; do
+          if [ -f "$GITHUB_WORKSPACE/$i" ]; then
+            echo -e "\n\n\n## $i ##\n\n" >> .config.init
+            cat "$GITHUB_WORKSPACE/$i" >> .config.init
+          fi
+        done
+        cp .config.init .config
+        make defconfig
+
+        echo -e "\n---- config post-defconfig ----\n"
+        cat .config
+        echo -e "\n---- config post-defconfig ----\n"
+
+        echo -e "\n---- diffconfig ----\n"
+        ./scripts/diffconfig.sh
+        echo -e "\n---- diffconfig ----\n"
