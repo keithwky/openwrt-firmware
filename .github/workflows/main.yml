@@ -105,9 +105,9 @@ jobs:
         cp .config.init .config
         make defconfig
 
-        echo -e "\n---- config post-defconfig ----\n"
-        cat .config
-        echo -e "\n---- config post-defconfig ----\n"
+        #echo -e "\n---- config post-defconfig ----\n"
+        #cat .config
+        #echo -e "\n---- config post-defconfig ----\n"
 
         echo -e "\n---- diffconfig ----\n"
         ./scripts/diffconfig.sh
