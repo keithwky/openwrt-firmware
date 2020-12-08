@@ -1,0 +1,64 @@
+diff --git a/utils/ucl/Makefile b/utils/ucl/Makefile
+new file mode 100644
+index 00000000..1a1faa23
+--- /dev/null
++++ b/utils/ucl/Makefile
+@@ -0,0 +1,58 @@
++#
++# Copyright (C) 2011-2013 OpenWrt.org
++#
++# This is free software, licensed under the GNU General Public License v2.
++# See /LICENSE for more information.
++#
++include $(TOPDIR)/rules.mk
++
++PKG_NAME:=ucl
++PKG_VERSION:=1.03
++
++PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
++PKG_SOURCE_URL:=http://www.oberhumer.com/opensource/ucl/download/
++PKG_HASH:=b865299ffd45d73412293369c9754b07637680e5c826915f097577cd27350348
++
++HOST_BUILD_DIR:=$(BUILD_DIR_HOST)/$(PKG_NAME)-$(PKG_VERSION)
++
++PKG_HOST_ONLY:=1
++
++include $(INCLUDE_DIR)/host-build.mk
++include $(INCLUDE_DIR)/package.mk
++
++define Package/ucl
++  SECTION:=utils
++  CATEGORY:=Utilities
++  SUBMENU:=Compression
++  TITLE:=Portable lossless data compression library
++  URL:=http://www.oberhumer.com/opensource/ucl/
++  BUILDONLY:=1
++endef
++
++define Package/ucl/description
++UCL is a portable lossless data compression library written in ANSI C. UCL
++implements a number of compression algorithms that achieve an excellent
++compression ratio while allowing *very* fast decompression. Decompression
++requires no additional memory.
++endef
++
++HOST_CONFIGURE_ARGS += \
++	--enable-static \
++	--enable-shared \
++	--disable-asm
++
++HOST_CFLAGS += -std=c90 -fPIC
++	
++define Host/Install
++	$(INSTALL_DIR) $(STAGING_DIR_HOST)/include/ucl/
++	$(CP) $(HOST_BUILD_DIR)/include/ucl/ucl{,conf}.h $(STAGING_DIR_HOST)/include/ucl/
++	$(CP) $(HOST_BUILD_DIR)/src/.libs/libucl.{a,so*} $(STAGING_DIR_HOST)/lib/
++endef
++
++define Host/Clean
++	rm -rf $(STAGING_DIR_HOST)/include/ucl/
++	rm -f $(STAGING_DIR_HOST)/lib/libucl.{a,so*}
++endef
++
++$(eval $(call HostBuild))
++$(eval $(call BuildPackage,ucl))
