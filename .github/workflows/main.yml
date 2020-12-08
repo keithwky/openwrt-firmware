@@ -59,6 +59,12 @@ jobs:
       run: |
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
+        mkdir -p config
+        date -Is > config/versiontime
+        VERSION=$REPO_BRANCH-$(openwrt/scripts/getver.sh)-$(date +%Y%m%d-%H%M)
+        echo $VERSION > config/version
+        cat config/versiontime
+        cat config/version
 
     - name: Apply patches to base feed
       working-directory: openwrt
@@ -122,19 +128,19 @@ jobs:
         #echo -e "\n---- diffconfig ----\n"
 
         mkdir -p $GITHUB_WORKSPACE/config
-        if [ -f "$GITHUB_WORKSPACE/config/${{ matrix.device }}.config" ]; then
-          diff -uprN "$GITHUB_WORKSPACE/config/${{ matrix.device }}.config" .config > .config.diff
-          echo -e "\n---- config diff ----\n"
-          cat .config.diff
-          echo -e "\n---- config diff ----\n"
-          cp -fpR .config.diff $GITHUB_WORKSPACE/config/${{ matrix.device }}.config.diff
-        fi
         if [ -f "$GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig" ]; then
           diff -uprN "$GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig" .diffconfig > .diffconfig.diff
           echo -e "\n---- diffconfig diff ----\n"
           cat .diffconfig.diff
           echo -e "\n---- diffconfig diff ----\n"
           cp -fpR .diffconfig.diff $GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig.diff
+        fi
+        if [ -f "$GITHUB_WORKSPACE/config/${{ matrix.device }}.config" ]; then
+          diff -uprN "$GITHUB_WORKSPACE/config/${{ matrix.device }}.config" .config > .config.diff
+          echo -e "\n---- config diff ----\n"
+          cat .config.diff
+          echo -e "\n---- config diff ----\n"
+          cp -fpR .config.diff $GITHUB_WORKSPACE/config/${{ matrix.device }}.config.diff
         fi
         
         cp -fpR .config $GITHUB_WORKSPACE/config/${{ matrix.device }}.config
