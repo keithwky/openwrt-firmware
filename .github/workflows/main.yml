@@ -57,7 +57,7 @@ jobs:
       run: |
         cd openwrt
         #echo -e "\n---- Applying patches to base feed ----\n"
-        [ -d $GITHUB_WORKSPACE/patches-base ] && PATCHES="$( ls $GITHUB_WORKSPACE/patches-base/*.patch )"
+        [ -d $GITHUB_WORKSPACE/patches/base ] && PATCHES="$( ls $GITHUB_WORKSPACE/patches/base/*.patch )"
         for i in $PATCHES; do
           echo -e "\n---- Applying patch $(basename $i) ----\n"
           git apply -v --whitespace=nowarn $i
@@ -71,11 +71,11 @@ jobs:
         cd openwrt
         ( 
           for feed in $FEEDS; do
-            if [ -d "feeds/$feed" ] && [ -d "patches-$feed" ]; then
+            if [ -d "$GITHUB_WORKSPACE/openwrt/feeds/$feed" ] && [ -d "$GITHUB_WORKSPACE/patches/$feed" ]; then
               echo -e "\n---- Applying patches to $feed feed ----\n"
               ( 
-                cd "/feeds/$feed";
-                  for i in $( ls "patches-$feed"/*.patch ); do
+                cd "$GITHUB_WORKSPACE/openwrt/feeds/$feed";
+                  for i in $( ls "$GITHUB_WORKSPACE/patches/$feed"/*.patch ); do
                     echo  -e "\n---- Applying patch $(basename $i) ----\n"
                     git apply -v --whitespace=nowarn $i
                   done 
