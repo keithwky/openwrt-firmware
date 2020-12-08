@@ -11,14 +11,20 @@ env:
 
 jobs:
   build:
-    name: Build ${{ matrix.config }}
+    name: Build ${{ matrix.device }}
     runs-on: ubuntu-20.04
     strategy:
       fail-fast: False
       matrix:
-        config:
-          - "R7800"
-          - "EX6150v2"
+        include:
+          - device: "netgear_r7800"
+            target: "ipq806x"
+            subtarget: "generic"
+            config: "R7800"
+          - device: "netgear_ex6150v2"
+            target: "ipq40xx"
+            subtarget: "generic"
+            config: "EX6150v2"
 
     steps:
     - name: Checkout
@@ -38,17 +44,12 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo apt-get -y install libncurses-dev
-        #TARGET=$(echo ${{ matrix.targets }} | cut -d "/" -f 1)
-        #SUBTARGET=$(echo ${{ matrix.targets }} | cut -d "/" -f 2)
-        #echo "TARGET=$TARGET" >> "$GITHUB_ENV"
-        #echo "SUBTARGET=$SUBTARGET" >> "$GITHUB_ENV"
+        echo "TARGET=${{ matrix.target }}" >> "$GITHUB_ENV"
+        echo "SUBTARGET=${{ matrix.subtarget }}" >> "$GITHUB_ENV"
         sudo timedatectl set-timezone "Asia/Hong_Kong"
-        sudo mkdir -p /workdir
-        sudo chown $USER:$GROUPS /workdir
 
     - name: Clone source code
       run: |
-        echo $PWD
         df -hT $PWD
         git clone $REPO_URL -b $REPO_BRANCH openwrt
 
