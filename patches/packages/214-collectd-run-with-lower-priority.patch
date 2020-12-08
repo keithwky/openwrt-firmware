@@ -1,0 +1,13 @@
+diff --git a/utils/collectd/files/collectd.init b/utils/collectd/files/collectd.init
+index 89af365c2..77843fd7a 100644
+--- a/utils/collectd/files/collectd.init
++++ b/utils/collectd/files/collectd.init
+@@ -7,7 +7,7 @@ STOP=10
+ USE_PROCD=1
+ COLLECTD_CONF="/tmp/collectd.conf"
+ LOG="logger -t collectd[$$] -p"
+-NICEPRIO=5
++NICEPRIO=19
+ 
+ CONFIG_STRING=""
+ 
