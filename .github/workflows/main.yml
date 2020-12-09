@@ -21,16 +21,41 @@ jobs:
             target: "ipq806x"
             subtarget: "generic"
             config: "R7800"
-          - device: "netgear_ex6150v2"
-            target: "ipq40xx"
-            subtarget: "generic"
-            config: "EX6150v2"
+          #- device: "netgear_ex6150v2"
+          #  target: "ipq40xx"
+          #  subtarget: "generic"
+          #  config: "EX6150v2"
 
     steps:
     - name: Checkout
       uses: actions/checkout@v2
+
+    - name: Get commit ids
+      run: |
+        COMMITS=$(git rev-parse HEAD HEAD~{1..5})
+        i=1
+        for id in $COMMITS; do
+          i=$((i++))
+          echo "HEAD_SHA$i=$id" >> "$GITHUB_ENV"
+        done
+
+    - name: Cache sources
+      id: cache-dl
+      uses: actions/cache@v2
       with:
-        fetch-depth: 0
+        path: dl/
+        key: Sources-${{ env.HEAD_SHA1 }}
+
+    - name: Load previous cache
+      if: steps.cache-dl.outputs.cache-hit != 'true'
+      uses: actions/cache@v2
+      with: 
+        path: dl/
+        key: Sources-${{ env.HEAD_SHA2 }}
+        restore-keys: |
+          Sources-${{ env.HEAD_SHA3 }}
+          Sources-${{ env.HEAD_SHA4 }}
+          Sources-${{ env.HEAD_SHA5 }}
 
     - name: Initialization environment
       env:
