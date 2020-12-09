@@ -145,6 +145,11 @@ jobs:
         make target/compile -j$(nproc) IGNORE_ERRORS='n m' || \
           make target/compile IGNORE_ERRORS='n m' V=s
 
+    - name: Buildinfo
+      working-directory: openwrt
+      run: |
+        make buildinfo V=s
+
     - name: Build packages
       working-directory: openwrt
       run: |
@@ -161,11 +166,6 @@ jobs:
       run: |
         make target/install -j$(nproc) || \
           make target/install V=s
-
-    - name: Buildinfo
-      working-directory: openwrt
-      run: |
-        make buildinfo V=s
 
     - name: JSON overview
       working-directory: openwrt
