@@ -8,7 +8,7 @@ env:
   OPENWRT_REPO: openwrt/openwrt
   OPENWRT_REPO_BRANCH: master
   FEEDS: "packages luci routing telephony freifunk waller"
-  BUILD_PREPARE: false
+  BUILD_PREPARE: true
   BUILD_COMPILE: false
   BUILD_FULL: false
 
@@ -36,6 +36,9 @@ jobs:
         echo "COMMITID=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
         cd openwrt
         echo "OPENWRT_COMMITID=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+        echo "TIMESTAMP=${{ env.TIMESTAMP }}"
+        echo "COMMITID=${{ env.COMMITID }}"
+        echo "OPENWRT_COMMITID=${{ env.OPENWRT_COMMITID }}"
         
   prepare:
     name: Prepare OpenWrt repo
