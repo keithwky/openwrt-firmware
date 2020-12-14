@@ -8,9 +8,9 @@ env:
   OPENWRT_REPO: openwrt/openwrt
   OPENWRT_REPO_BRANCH: master
   FEEDS: "packages luci routing telephony freifunk waller"
-  BUILD_PREPARE: False
-  BUILD_COMPILE: False
-  BUILD_FULL: False
+  BUILD_PREPARE: false
+  BUILD_COMPILE: false
+  BUILD_FULL: false
 
 jobs:
   get_version:
@@ -40,7 +40,7 @@ jobs:
   prepare:
     name: Prepare OpenWrt repo
     runs-on: ubuntu-20.04
-    if: ${{ env.BUILD_PREPARE }} != 'false'
+    if: env.BUILD_PREPARE == 'true'
     needs: [get_version]
     steps:
     - name: Checkout repo
@@ -102,7 +102,7 @@ jobs:
   build:
     name: Build ${{ matrix.device }}
     runs-on: ubuntu-20.04
-    if: ${{ env.BUILD_COMPILE }} != 'false'
+    if: env.BUILD_COMPILE == 'true'
     strategy:
       fail-fast: False
       matrix:
