@@ -30,6 +30,12 @@ jobs:
         fetch-depth: 1
         path: openwrt
 
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo apt-get -y install libncurses-dev
+
     - name: Retrieve commit ids
       run: |
         echo "TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)" >> "$GITHUB_ENV"
