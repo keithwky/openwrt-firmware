@@ -40,7 +40,7 @@ jobs:
   prepare:
     name: Prepare OpenWrt repo
     runs-on: ubuntu-20.04
-    if: env.BUILD_PREPARE != 'false'
+    if: ${{ env.BUILD_PREPARE }} != 'false'
     needs: [get_version]
     steps:
     - name: Checkout repo
@@ -102,7 +102,7 @@ jobs:
   build:
     name: Build ${{ matrix.device }}
     runs-on: ubuntu-20.04
-    if: env.BUILD_COMPILE != 'false'
+    if: ${{ env.BUILD_COMPILE }} != 'false'
     strategy:
       fail-fast: False
       matrix:
@@ -208,34 +208,34 @@ jobs:
         make download -j$(nproc)
 
     - name: Build tools
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       working-directory: openwrt
       run: |
         make tools/install -j$(nproc) || \
           make tools/install V=s
 
     - name: Build toolchain
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       working-directory: openwrt
       run: |
         make toolchain/install -j$(nproc) || \
           make toolchain/install V=s
 
     - name: Build target
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       working-directory: openwrt
       run: |
         make target/compile -j$(nproc) IGNORE_ERRORS='n m' || \
           make target/compile IGNORE_ERRORS='n m' V=s
 
     - name: Buildinfo
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       working-directory: openwrt
       run: |
         make buildinfo V=s
 
     - name: Build packages
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       working-directory: openwrt
       run: |
         make package/compile -j$(nproc) IGNORE_ERRORS='n m' || \
@@ -247,20 +247,20 @@ jobs:
         make package/index V=s
 
     - name: Build firmware
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       working-directory: openwrt
       run: |
         make target/install -j$(nproc) || \
           make target/install V=s
 
     - name: JSON overview
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       working-directory: openwrt
       run: |
         make json_overview_image_info V=s
 
     - name: Checksum
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       working-directory: openwrt
       run: |
         make checksum V=s
@@ -269,14 +269,14 @@ jobs:
       run: echo "target_sani=${{ env.TARGET }}-${{ env.SUBTARGET }}" >> "$GITHUB_ENV"
     
     - name: Upload images
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-images
         path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/openwrt-${{ env.TARGET }}-*
 
     - name: Upload packages
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-packages
@@ -285,14 +285,14 @@ jobs:
           !openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
 
     - name: Upload kmods
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-kmods
         path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
 
     - name: Upload supplementary
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-supplementary
@@ -303,14 +303,14 @@ jobs:
           openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/sha256sums*
 
     - name: Upload logs
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-logs
         path: openwrt/logs/
 
     - name: Upload config
-      if: env.BUILD_FULL != 'false'
+      if: ${{ env.BUILD_FULL }} != 'false'
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-config
