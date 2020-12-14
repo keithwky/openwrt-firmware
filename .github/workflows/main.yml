@@ -40,23 +40,24 @@ jobs:
   prepare:
     name: Prepare OpenWrt repo
     runs-on: ubuntu-20.04
-    if: env.BUILD_PREPARE == 'true'
     needs: [get_version]
     steps:
     - name: Checkout repo
+      if: env.BUILD_PREPARE == 'true'
       uses: actions/checkout@v2
       with:
         ref: ${{ env.COMMITID }}
         fetch-depth: 1
 
     - name: Cache openwrt folder
-      id: cache-sources
+      if: env.BUILD_PREPARE == 'true'
       uses: actions/cache@v2
       with:
         path: openwrt/
         key: openwrt-${{ env.OPENWRT_COMMITID }}-${{ env.COMMITID }}
 
     - name: Checkout OpenWrt repo
+      if: env.BUILD_PREPARE == 'true'
       uses: actions/checkout@v2
       with:
         repository: ${{ env.OPENWRT_REPO }}
@@ -65,6 +66,7 @@ jobs:
         path: openwrt
 
     - name: Apply patches to base feed
+      if: env.BUILD_PREPARE == 'true'
       working-directory: openwrt
       run: |
         [ -d $GITHUB_WORKSPACE/patches/base ] && PATCHES="$( ls $GITHUB_WORKSPACE/patches/base/*.patch )"
@@ -74,10 +76,12 @@ jobs:
         done
 
     - name: Update feeds
+      if: env.BUILD_PREPARE == 'true'
       working-directory: openwrt
       run: ./scripts/feeds update -a
 
     - name: Apply patches to feeds
+      if: env.BUILD_PREPARE == 'true'
       working-directory: openwrt
       run: |
         for feed in $FEEDS; do
@@ -94,6 +98,7 @@ jobs:
         done
 
     - name: Update & Install feeds
+      if: env.BUILD_PREPARE == 'true'
       working-directory: openwrt
       run: |
         ./scripts/feeds update -i
@@ -102,7 +107,6 @@ jobs:
   build:
     name: Build ${{ matrix.device }}
     runs-on: ubuntu-20.04
-    if: env.BUILD_COMPILE == 'true'
     strategy:
       fail-fast: False
       matrix:
@@ -118,9 +122,11 @@ jobs:
 
     steps:
     - name: Checkout
+      if: env.BUILD_COMPILE == 'true'
       uses: actions/checkout@v2
 
     - name: Get commit ids
+      if: env.BUILD_COMPILE == 'true'
       run: |
         COMMITS=$(git rev-parse HEAD HEAD~{1..5})
         i=1
@@ -130,7 +136,7 @@ jobs:
         done
 
     - name: Cache openwrt folder
-      id: cache-sources
+      if: env.BUILD_COMPILE == 'true'
       uses: actions/cache@v2
       with:
         path: openwrt/
@@ -138,13 +144,14 @@ jobs:
 
     - name: Cache sources
       id: cache-dl
+      if: env.BUILD_COMPILE == 'true'
       uses: actions/cache@v2
       with:
         path: dl/
         key: downloads-${{ matrix.device }}-${{ env.HEAD_SHA1 }}
 
     - name: Load previous cache
-      if: steps.cache-dl.outputs.cache-hit != 'true'
+      if: env.BUILD_COMPILE == 'true' && steps.cache-dl.outputs.cache-hit != 'true'
       uses: actions/cache@v2
       with: 
         path: dl/
@@ -155,6 +162,7 @@ jobs:
           downloads-${{ matrix.device }}-${{ env.HEAD_SHA5 }}
 
     - name: Initialization environment
+      if: env.BUILD_COMPILE == 'true'
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
@@ -163,6 +171,7 @@ jobs:
         echo "SUBTARGET=${{ matrix.subtarget }}" >> "$GITHUB_ENV"
 
     - name: Save version info
+      if: env.BUILD_COMPILE == 'true'
       working-directory: openwrt
       run: |
         mkdir -p config
@@ -173,6 +182,7 @@ jobs:
         cat config/version
 
     - name: Set configuration
+      if: env.BUILD_COMPILE == 'true'
       working-directory: openwrt
       env:
         CONFIG_FILES: "common_hnyman.config.init common_override.config.init ${{ matrix.config }}.config.init"
@@ -203,39 +213,40 @@ jobs:
         cp -fpR .diffconfig $GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig
 
     - name: Download package
+      if: env.BUILD_COMPILE == 'true'
       working-directory: openwrt
       run: |
         make download -j$(nproc)
 
     - name: Build tools
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       working-directory: openwrt
       run: |
         make tools/install -j$(nproc) || \
           make tools/install V=s
 
     - name: Build toolchain
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       working-directory: openwrt
       run: |
         make toolchain/install -j$(nproc) || \
           make toolchain/install V=s
 
     - name: Build target
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       working-directory: openwrt
       run: |
         make target/compile -j$(nproc) IGNORE_ERRORS='n m' || \
           make target/compile IGNORE_ERRORS='n m' V=s
 
     - name: Buildinfo
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       working-directory: openwrt
       run: |
         make buildinfo V=s
 
     - name: Build packages
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       working-directory: openwrt
       run: |
         make package/compile -j$(nproc) IGNORE_ERRORS='n m' || \
@@ -247,20 +258,20 @@ jobs:
         make package/index V=s
 
     - name: Build firmware
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       working-directory: openwrt
       run: |
         make target/install -j$(nproc) || \
           make target/install V=s
 
     - name: JSON overview
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       working-directory: openwrt
       run: |
         make json_overview_image_info V=s
 
     - name: Checksum
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       working-directory: openwrt
       run: |
         make checksum V=s
@@ -269,14 +280,14 @@ jobs:
       run: echo "target_sani=${{ env.TARGET }}-${{ env.SUBTARGET }}" >> "$GITHUB_ENV"
     
     - name: Upload images
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-images
         path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/openwrt-${{ env.TARGET }}-*
 
     - name: Upload packages
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-packages
@@ -285,14 +296,14 @@ jobs:
           !openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
 
     - name: Upload kmods
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-kmods
         path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
 
     - name: Upload supplementary
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-supplementary
@@ -303,14 +314,14 @@ jobs:
           openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/sha256sums*
 
     - name: Upload logs
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-logs
         path: openwrt/logs/
 
     - name: Upload config
-      if: ${{ env.BUILD_FULL }} != 'false'
+      if: env.BUILD_FULL == 'true'
       uses: actions/upload-artifact@v2
       with:
         name: ${{ env.target_sani }}-config
