@@ -38,13 +38,13 @@ jobs:
 
     - name: Retrieve commit ids
       run: |
-        echo "TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)" >> "$GITHUB_ENV"
-        echo "COMMITID=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+        echo "TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+        echo "COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
         cd openwrt
-        echo "OPENWRT_COMMITID=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-        echo "${{ env.TIMESTAMP }}"
-        echo "${{ env.COMMITID }}"
-        echo "${{ env.OPENWRT_COMMITID }}"
+        echo "OPENWRT_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
+        echo ${{ env.TIMESTAMP }}
+        echo ${{ env.COMMITID }}
+        echo ${{ env.OPENWRT_COMMITID }}
         
   prepare:
     name: Prepare OpenWrt repo
