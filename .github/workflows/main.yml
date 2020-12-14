@@ -27,30 +27,53 @@ jobs:
       with:
         repository: ${{ env.OPENWRT_REPO }}
         ref: ${{ env.OPENWRT_REPO_BRANCH }}
-        fetch-depth: 1
+        fetch-depth: 0
         path: openwrt
-
-    - name: Initialization environment
-      env:
-        DEBIAN_FRONTEND: noninteractive
-      run: |
-        sudo apt-get -y install libncurses-dev
 
     - name: Retrieve commit ids
       run: |
-        echo "TIMESTAMP=$(date -u +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
-        echo "COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
-        cd openwrt
-        echo "OPENWRT_COMMITID=$(git rev-parse HEAD)" >> $GITHUB_ENV
-        echo ${{ env.TIMESTAMP }}
-        echo ${{ env.COMMITID }}
-        echo ${{ env.OPENWRT_COMMITID }}
+        mkdir -p version
+        echo "$(date -u +%Y%m%d-%H%M%S)" > version/timestamp
+        echo "$(git rev-parse HEAD)" > version/commitid
+        echo "$(cd openwrt; git rev-parse HEAD)" > version/openwrt_commitid
+
+    - name: Upload version
+      uses: actions/upload-artifact@v2
+      with:
+        name: version
+        path: version/
         
   prepare:
     name: Prepare OpenWrt repo
     needs: [get_version]
     runs-on: ubuntu-20.04
     steps:
+    - name: Download version
+      if: env.BUILD_PREPARE == 'true'
+      uses: actions/download-artifact@v2
+      with:
+        name: version
+        path: version/
+
+    - name: Initialization environment
+      if: env.BUILD_PREPARE == 'true'
+      run: |
+        echo "TIMESTAMP=$(cat version/timestamp)" >> $GITHUB_ENV
+        echo "COMMITID=$(cat version/commitid)" >> $GITHUB_ENV
+        echo "OPENWRT_COMMITID=$(cat version/openwrt_commitid)" >> $GITHUB_ENV
+        echo ${{ env.TIMESTAMP }}
+        echo ${{ env.COMMITID }}
+        echo ${{ env.OPENWRT_COMMITID }}
+        TIMESTAMP="$(cat version/timestamp)"
+        COMMITID="$(cat version/commitid)"
+        OPENWRT_COMMITID="$(cat version/openwrt_commitid)"
+        echo "${{ env.TIMESTAMP }}"
+        echo "${{ env.COMMITID }}"
+        echo "${{ env.OPENWRT_COMMITID }}"
+        echo "$TIMESTAMP"
+        echo "$COMMITID"
+        echo "$OPENWRT_COMMITID"
+
     - name: Checkout repo
       if: env.BUILD_PREPARE == 'true'
       uses: actions/checkout@v2
