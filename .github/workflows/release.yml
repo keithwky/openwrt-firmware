@@ -14,7 +14,12 @@ jobs:
     - name: Retieve version artifact
       run: |
         URL="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW_NAME/runs?per_page=1&page=1&status=success"
-        HEADERS="--header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' --header 'content-type: application/json'"
-        WORKFLOW_RUN_ID="$(curl $HEADERS --url $URL | jq '.workflow_runs[0].id')"
-        echo $WORKFLOW_RUN_ID
-        curl $HEADERS --url $URL
+        RUN_ID=$(curl --url $URL \
+          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+          --header 'content-type: application/json' \
+          | jq '.workflow_runs[0].id')
+        echo $RUN_ID
+        URL="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts
+        curl --url $URL \
+          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+          --header 'content-type: application/json'
