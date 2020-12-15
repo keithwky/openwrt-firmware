@@ -10,7 +10,7 @@ env:
   FEEDS: "packages luci routing telephony freifunk waller"
   BUILD_APPLYPATCH: true
   BUILD_PREPARE: true
-  BUILD_COMPILE: false
+  BUILD_COMPILE: true
 
 jobs:
   get_version:
