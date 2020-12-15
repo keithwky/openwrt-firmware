@@ -86,13 +86,14 @@ jobs:
       uses: actions/checkout@v2
       with:
         repository: ${{ env.OPENWRT_REPO }}
-        ref: ${{ env.OPENWRT_COMMITID }}
+        ref: ${{ env.OPENWRT_REPO_BRANCH }}
         fetch-depth: 0
         path: openwrt
 
     - name: Retieve OpenWrt Version
       working-directory: openwrt
       run: |
+        git checkout ${{ env.OPENWRT_COMMITID }}
         sh -x ./scripts/getver.sh
         git rev-parse --verify --symbolic-full-name HEAD@{u}
         git rev-parse --verify --symbolic-full-name master@{u}
