@@ -26,8 +26,8 @@ jobs:
         echo "COMMITID=$(cat commitid)" >> $GITHUB_ENV
         echo "OPENWRT_COMMITID=$(cat openwrt_commitid)" >> $GITHUB_ENV
         echo "OPENWRT_VERSION=$(cat openwrt_version)" >> $GITHUB_ENV
-        HASH=$(echo $OPENWRT_COMMITID | cut -c-10)
-        VERSION=$(echo $OPENWRT_VERSION | sed "s/-$HASH//")
+        HASH=$(cat openwrt_commitid | cut -c-10)
+        VERSION=$(cat openwrt_version | sed "s/-$HASH//")
         echo "VERSION=$VERSION" >> $GITHUB_ENV
         cat timestamp
         cat commitid
