@@ -19,7 +19,7 @@ jobs:
           --header 'content-type: application/json' \
           | jq '.workflow_runs[0].id')
         echo $RUN_ID
-        URL="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts
+        URL="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts"
         curl --url $URL \
           --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
           --header 'content-type: application/json'
