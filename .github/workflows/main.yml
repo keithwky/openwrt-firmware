@@ -9,7 +9,7 @@ env:
   OPENWRT_REPO_BRANCH: master
   FEEDS: "packages luci routing telephony freifunk waller"
   BUILD_APPLYPATCH: true
-  BUILD_PREPARE: false
+  BUILD_PREPARE: true
   BUILD_COMPILE: false
 
 jobs:
@@ -144,12 +144,6 @@ jobs:
         ./scripts/feeds update -i
         ./scripts/feeds install -a
 
-    #- name: Upload openwrt
-    #  uses: actions/upload-artifact@v2
-    #  with:
-    #    name: openwrt
-    #    path: openwrt/
-
   build:
     name: Build ${{ matrix.device }}
     needs: [prepare]
@@ -169,16 +163,11 @@ jobs:
 
     steps:
     - name: Download version
+      if: env.BUILD_PREPARE == 'true'
       uses: actions/download-artifact@v2
       with:
         name: version
         path: version/
-
-    #- name: Download openwrt
-    #  uses: actions/download-artifact@v2
-    #  with:
-    #    name: openwrt
-    #    path: openwrt/
 
     - name: Initialization environment
       if: env.BUILD_PREPARE == 'true'
@@ -201,6 +190,7 @@ jobs:
         cat openwrt_version
 
     - name: Checkout repo
+      if: env.BUILD_PREPARE == 'true'
       uses: actions/checkout@v2
       with:
         ref: ${{ env.COMMITID }}
