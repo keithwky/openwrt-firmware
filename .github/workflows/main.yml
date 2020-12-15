@@ -40,6 +40,7 @@ jobs:
         cat version/timestamp
         cat version/commitid
         cat version/openwrt_commitid
+        ls -l
 
     - name: Upload version
       uses: actions/upload-artifact@v2
@@ -93,10 +94,12 @@ jobs:
       working-directory: openwrt
       run: |
         sh -x ./scripts/getver.sh
+        git rev-parse --verify --symbolic-full-name HEAD@{u}
+        git rev-parse --verify --symbolic-full-name master@{u}
         VERSION=$(./scripts/getver.sh)
         echo $VERSION
         cd $GITHUB_WORKSPACE/version
-        ls -l
+        (cd $GITHUB_WORKSPACE; ls -l)
         echo "$(cd $GITHUB_WORKSPACE/openwrt; ./scripts/getver.sh)"
         echo ${{ env.OPENWRT_REPO_BRANCH }}-$VERSION-${{ env.TIMESTAMP }} > /openwrt_version
         cat openwrt_version
