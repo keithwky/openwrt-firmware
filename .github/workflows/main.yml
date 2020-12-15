@@ -94,9 +94,6 @@ jobs:
       working-directory: openwrt
       run: |
         git checkout ${{ env.OPENWRT_COMMITID }}
-        sh -x ./scripts/getver.sh
-        git rev-parse --verify --symbolic-full-name HEAD@{u}
-        git rev-parse --verify --symbolic-full-name master@{u}
         VERSION=$(./scripts/getver.sh)
         echo $VERSION
         cd $GITHUB_WORKSPACE/version
