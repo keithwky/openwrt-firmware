@@ -93,6 +93,7 @@ jobs:
         VERSION=$(./scripts/getver.sh)
         echo $VERSION
         cd $GITHUB_WORKSPACE/version
+        echo "$(cd $GITHUB_WORKSPACE/openwrt; ./scripts/getver.sh)"
         echo ${{ env.OPENWRT_REPO_BRANCH }}-$VERSION-${{ env.TIMESTAMP }} > /openwrt_version
         cat openwrt_version
 
