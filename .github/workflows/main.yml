@@ -91,7 +91,7 @@ jobs:
       working-directory: version
       run: |
         VERSION=$(cd $GITHUB_WORKSPACE/openwrt; ./scripts/getver.sh)
-        echo "${{ env.REPO_BRANCH }}-$VERSION-${{ env.TIMESTAMP }}" > openwrt_version
+        echo ${{ env.OPENWRT_REPO_BRANCH }}-$VERSION-${{ env.TIMESTAMP }} > openwrt_version
         cat openwrt_version
 
     - name: Upload version
