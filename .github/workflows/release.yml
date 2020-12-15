@@ -15,5 +15,5 @@ jobs:
       run: |
         URL="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW_NAME/runs?per_page=1&page=1&status=success"
         HEADERS="--header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' --header 'content-type: application/json'"
-        WORKFLOW_RUN_ID="$(curl --url $URL $HEADERS | jq '.workflow_runs[0].id')"
+        WORKFLOW_RUN_ID="$(curl $HEADERS --url $URL | jq '.workflow_runs[0].id')"
         curl --url $URL $HEADERS
