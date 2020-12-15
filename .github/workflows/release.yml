@@ -1,13 +1,10 @@
 name: Release OpenWrt Firmwares
 
 on:
-  repository_dispatch:
   workflow_dispatch:
 
 env:
-  WORKFLOW_NAME="main.yml"
-
-API_URL="https://api.github.com"
+  WORKFLOW_NAME: "main.yml"
 
 jobs:
   create_release:
