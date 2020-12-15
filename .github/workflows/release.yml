@@ -17,3 +17,4 @@ jobs:
         HEADERS="--header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' --header 'content-type: application/json'"
         WORKFLOW_RUN_ID="$(curl $HEADERS --url $URL | jq '.workflow_runs[0].id')"
         echo $WORKFLOW_RUN_ID
+        curl $HEADERS --url $URL
