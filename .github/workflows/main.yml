@@ -58,13 +58,14 @@ jobs:
         path: version/
 
     - name: Initialization environment
+      working-directory: version
       run: |
-        echo "TIMESTAMP=$(cat version/timestamp)" >> $GITHUB_ENV
-        echo "COMMITID=$(cat version/commitid)" >> $GITHUB_ENV
-        echo "OPENWRT_COMMITID=$(cat version/openwrt_commitid)" >> $GITHUB_ENV
-        cat version/timestamp
-        cat version/commitid
-        cat version/openwrt_commitid
+        echo "TIMESTAMP=$(cat timestamp)" >> $GITHUB_ENV
+        echo "COMMITID=$(cat commitid)" >> $GITHUB_ENV
+        echo "OPENWRT_COMMITID=$(cat openwrt_commitid)" >> $GITHUB_ENV
+        cat timestamp
+        cat commitid
+        cat openwrt_commitid
 
     - name: Checkout repo
       uses: actions/checkout@v2
@@ -87,9 +88,11 @@ jobs:
         path: openwrt
 
     - name: Retieve OpenWrt Version
+      working-directory: version
       run: |
-        echo ${{ env.REPO_BRANCH }}-$(./scripts/getver.sh)-${{ env.TIMESTAMP }} > version/openwrt_version
-        cat version/openwrt_version
+        VERSION=$(cd $GITHUB_WORKSPACE/openwrt; ./scripts/getver.sh)
+        echo "${{ env.REPO_BRANCH }}-$VERSION-${{ env.TIMESTAMP }}" > openwrt_version
+        cat openwrt_version
 
     - name: Upload version
       uses: actions/upload-artifact@v2
@@ -160,22 +163,23 @@ jobs:
 
     - name: Initialization environment
       if: env.BUILD_PREPARE == 'true'
+      working-directory: version
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo apt-get -y install libncurses-dev
-        echo "TIMESTAMP=$(cat version/timestamp)" >> $GITHUB_ENV
-        echo "COMMITID=$(cat version/commitid)" >> $GITHUB_ENV
-        echo "OPENWRT_COMMITID=$(cat version/openwrt_commitid)" >> $GITHUB_ENV
-        echo "OPENWRT_VERSION=$(cat version/openwrt_version)" >> $GITHUB_ENV
-        cat version/timestamp
-        cat version/commitid
-        cat version/openwrt_commitid
-        cat version/openwrt_version
 
         echo "TARGET=${{ matrix.target }}" >> "$GITHUB_ENV"
         echo "SUBTARGET=${{ matrix.subtarget }}" >> "$GITHUB_ENV"
-        mkdir -p config
+
+        echo "TIMESTAMP=$(cat timestamp)" >> $GITHUB_ENV
+        echo "COMMITID=$(cat commitid)" >> $GITHUB_ENV
+        echo "OPENWRT_COMMITID=$(cat openwrt_commitid)" >> $GITHUB_ENV
+        echo "OPENWRT_VERSION=$(cat openwrt_version)" >> $GITHUB_ENV
+        cat timestamp
+        cat commitid
+        cat openwrt_commitid
+        cat openwrt_version
 
     - name: Cache openwrt folder
       if: env.BUILD_PREPARE == 'true'
