@@ -1,0 +1,20 @@
+name: Release OpenWrt Firmwares
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+
+env:
+  WORKFLOW_NAME="main.yml"
+
+API_URL="https://api.github.com"
+
+jobs:
+  create_release:
+    name: Create Release
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Retieve version artifact
+      run: |
+        URL="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW_NAME/runs"
+        curl -u admin:${{ secrets.GITHUB_TOKEN }} $URL
