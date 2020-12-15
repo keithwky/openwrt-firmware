@@ -13,5 +13,7 @@ jobs:
     steps:
     - name: Retieve version artifact
       run: |
-        URL="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW_NAME/runs"
-        curl -u admin:${{ secrets.GITHUB_TOKEN }} $URL
+        URL="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW_NAME/runs?per_page=1&status=success"
+        curl --url $URL \
+        --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+        --header 'content-type: application/json'
