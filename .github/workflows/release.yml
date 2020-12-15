@@ -19,11 +19,65 @@ jobs:
         name: version
         path: version
 
-    - name: Check
+    - name: Initialization environment
       working-directory: version
       run: |
-        ls -l
+        echo "TIMESTAMP=$(cat timestamp)" >> $GITHUB_ENV
+        echo "COMMITID=$(cat commitid)" >> $GITHUB_ENV
+        echo "OPENWRT_COMMITID=$(cat openwrt_commitid)" >> $GITHUB_ENV
+        echo "OPENWRT_VERSION=$(cat openwrt_version)" >> $GITHUB_ENV
         cat timestamp
         cat commitid
         cat openwrt_commitid
         cat openwrt_version
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      with:
+        tag_name: ${{ env.OPENWRT_VERSION }}
+        release_name: ${{ env.OPENWRT_VERSION }}
+        body: |
+          Build Time : ${{ env.TIMESTAMP }}
+          OpenWrt Commit : ${{ env.OPENWRT_COMMITID }}
+          OpenWrt Version : ${{ env.OPENWRT_VERSION }}
+
+    - name: Output release url file
+      run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url
+
+    - name: Upload release url file
+      uses: actions/upload-artifact@v2
+      with:
+        name: release_url
+        path: release_url
+
+  upload_release:
+    name: Upload Release Files - ${{ matrix.device }}
+    needs: [create_release]
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: False
+      matrix:
+        include:
+          - device: "netgear_r7800"
+            target: "ipq806x"
+            subtarget: "generic"
+            config: "R7800"
+          - device: "netgear_ex6150v2"
+            target: "ipq40xx"
+            subtarget: "generic"
+            config: "EX6150v2"
+
+    steps:
+    - name: Download release url file
+      uses: actions/download-artifact@v1
+      with:
+        name: release_url
+        path: release_url/
+
+    - name: Get upload url
+      working-directory: release_url
+      run: |
+        echo "UPLOAD_URL=$(cat release_url)" >> $GITHUB_ENV
+        cat release_url
+
