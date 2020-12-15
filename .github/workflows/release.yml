@@ -1,0 +1,169 @@
+name: Release OpenWrt Firmwares
+
+on:
+  workflow_dispatch:
+
+env:
+  WORKFLOW_NAME: "build.yml"
+  REPO_BRANCH: master
+  RELEASE: true
+
+jobs:
+  create_release:
+    name: Create Release
+    runs-on: ubuntu-20.04
+    steps:
+    - name: Download version
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: ${{ env.WORKFLOW_NAME }}
+        workflow_conclusion: success
+        name: openwrt-version
+        path: version
+
+    - name: Initialization environment
+      id: init_env
+      working-directory: version
+      run: |
+        echo "TIMESTAMP=$(cat timestamp)" >> $GITHUB_ENV
+        echo "COMMITID=$(cat commitid)" >> $GITHUB_ENV
+        echo "OPENWRT_COMMITID=$(cat openwrt_commitid)" >> $GITHUB_ENV
+        echo "OPENWRT_VERSION=$(cat openwrt_version)" >> $GITHUB_ENV
+        
+        echo "timestamp :         $(cat timestamp)"
+        echo "commitid :          $(cat commitid)"
+        echo "openwrt_commitid :  $(cat openwrt_commitid)"
+        echo "openwrt_version :   $(cat openwrt_version)"
+
+        echo "TAG_NAME=v$(cat timestamp | sed -n 's/^\([0-9]\{8\}\)-[0-9]\{6\}$/\1/p')" >> $GITHUB_ENV
+        echo "release_tag :       $TAG_NAME"
+        
+        if [ -f openwrt_previous_tagname ]; then
+          echo "openwrt_previous_tagname :    $(cat openwrt_previous_tagname)"
+          echo "::set-output name=previous_version::true"
+        fi
+
+    - name: Checkout repo
+      uses: actions/checkout@v2
+      with:
+        ref: ${{ env.REPO_BRANCH }}
+        fetch-depth: 1
+        path: openwrt-firmware
+
+    - name: Switch to commit
+      working-directory: openwrt-firmware
+      run: |
+        git checkout ${{ env.COMMITID }}
+        echo "COMMITID=$(git rev-parse "${{ env.COMMITID }}")" >> $GITHUB_ENV
+
+    - name: Create Release
+      id: create_release
+      if: env.RELEASE == 'true'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        commitish: ${{ env.COMMITID }}
+        tag_name: ${{ env.TAG_NAME }}
+        release_name: ${{ env.OPENWRT_VERSION }}-${{ env.TIMESTAMP }}
+        body: |
+          Build Time : ${{ env.TIMESTAMP }}
+          OpenWrt Commit : ${{ env.OPENWRT_COMMITID }}
+          OpenWrt Version : ${{ env.OPENWRT_VERSION }}-${{ env.OPENWRT_COMMITID }}
+
+    - name: Upload Release Asset
+      if: env.RELEASE == 'true' && steps.init_env.outputs.previous_version == 'true'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: version/openwrt_changelog
+        asset_name: openwrt_changelog
+        asset_content_type: text/plain
+
+    - name: Output release tag file
+      run: echo "${{ env.TAG_NAME }}" > release_tag
+
+    - name: Upload release tag file
+      uses: actions/upload-artifact@v2
+      with:
+        name: release_tag
+        path: release_tag
+
+  upload_release:
+    name: Upload Release Files - ${{ matrix.device }}
+    needs: [create_release]
+    runs-on: ubuntu-20.04
+    strategy:
+      fail-fast: False
+      matrix:
+        include:
+          - device: "netgear_r7800"
+            target: "ipq806x"
+            subtarget: "generic"
+            factory_img: "squashfs-factory.img"
+            sysupgrade_img: "squashfs-sysupgrade.bin"
+          - device: "netgear_ex6150v2"
+            target: "ipq40xx"
+            subtarget: "generic"
+            factory_img: "squashfs-factory.img"
+            sysupgrade_img: "squashfs-sysupgrade.bin"
+
+    steps:
+    - name: Download release files
+      uses: actions/download-artifact@v2
+      with:
+        name: release_tag
+
+    - name: Get release info
+      run: |
+        echo "RELEASE_TAG=$(cat release_tag)" >> $GITHUB_ENV
+        echo "release_tag :       $(cat release_tag)"
+
+    - name: Download config
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: ${{ env.WORKFLOW_NAME }}
+        workflow_conclusion: success
+        name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-config
+        path: config
+
+    - name: Download images
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: ${{ env.WORKFLOW_NAME }}
+        workflow_conclusion: success
+        name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-images
+        path: images
+
+    - name: Download supplementary
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: ${{ env.WORKFLOW_NAME }}
+        workflow_conclusion: success
+        name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-supplementary
+        path: supplementary
+
+    - name: Copy files to release folder
+      run: |
+        mkdir -p release
+        cp -fpR supplementary/openwrt-feeds.buildinfo release
+        cp -fpR supplementary/openwrt-version.buildinfo release
+        cp -fpR "supplementary/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-config.buildinfo" release
+        cp -fpR "config/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config" release
+        cp -fpR "supplementary/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}.manifest" release
+        cp -fpR "images/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}-${{ matrix.factory_img }}" release
+        cp -fpR "images/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}-${{ matrix.sysupgrade_img }}" release
+        cp -fpR "supplementary/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-sha256sums" release
+        ls -l release
+
+    - name: Create release and upload files
+      if: env.RELEASE == 'true'
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: release/*
+        tag: ${{ env.RELEASE_TAG }}
+        file_glob: true
+        overwrite: true
