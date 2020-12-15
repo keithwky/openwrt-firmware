@@ -88,10 +88,12 @@ jobs:
         path: openwrt
 
     - name: Retieve OpenWrt Version
-      working-directory: version
+      working-directory: openwrt
       run: |
-        VERSION=$(cd $GITHUB_WORKSPACE/openwrt; ./scripts/getver.sh)
-        echo ${{ env.OPENWRT_REPO_BRANCH }}-$VERSION-${{ env.TIMESTAMP }} > openwrt_version
+        VERSION=$(./scripts/getver.sh)
+        echo $VERSION
+        cd $GITHUB_WORKSPACE/version
+        echo ${{ env.OPENWRT_REPO_BRANCH }}-$VERSION-${{ env.TIMESTAMP }} > /openwrt_version
         cat openwrt_version
 
     - name: Upload version
