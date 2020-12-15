@@ -11,16 +11,19 @@ jobs:
     name: Create Release
     runs-on: ubuntu-20.04
     steps:
-    - name: Retieve version artifact
+    - name: Download version
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: main.yml
+        workflow_conclusion: success
+        name: version
+        path: version
+
+    - name: Check
+      working-directory: version
       run: |
-        URL="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW_NAME/runs?per_page=1&page=1&status=success"
-        RUN_ID=$(curl --url $URL \
-          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
-          --header 'content-type: application/json' \
-          | jq '.workflow_runs[0].id')
-        echo $RUN_ID
-        URL="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts"
-        curl --url $URL \
-          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
-          --header 'content-type: application/json' \
-          | jq '.artifacts[] | select( .name == "version" )'
+        ls -l
+        cat timestamp
+        cat commitid
+        cat openwrt_commitid
+        cat openwrt_version
