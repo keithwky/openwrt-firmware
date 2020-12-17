@@ -5,6 +5,7 @@ on:
 
 env:
   WORKFLOW_NAME: "main.yml"
+  RELAESE: false
 
 jobs:
   create_release:
@@ -14,7 +15,7 @@ jobs:
     - name: Download version
       uses: dawidd6/action-download-artifact@v2
       with:
-        workflow: main.yml
+        workflow: ${{ env.WORKFLOW_NAME }}
         workflow_conclusion: success
         name: version
         path: version
@@ -37,6 +38,7 @@ jobs:
 
     - name: Create Release
       id: create_release
+      if: env.RELEASE == 'true'
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -49,9 +51,11 @@ jobs:
           OpenWrt Version : ${{ env.OPENWRT_VERSION }}
 
     - name: Output release url file
+      if: env.RELEASE == 'true'
       run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url
 
     - name: Upload release url file
+      if: env.RELEASE == 'true'
       uses: actions/upload-artifact@v2
       with:
         name: release_url
@@ -76,14 +80,48 @@ jobs:
 
     steps:
     - name: Download release url file
-      uses: actions/download-artifact@v1
+      if: env.RELEASE == 'true'
+      uses: actions/download-artifact@v2
       with:
         name: release_url
         path: release_url/
 
     - name: Get upload url
+      if: env.RELEASE == 'true'
       working-directory: release_url
       run: |
         echo "UPLOAD_URL=$(cat release_url)" >> $GITHUB_ENV
         cat release_url
 
+    - name: Download config
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: ${{ env.WORKFLOW_NAME }}
+        workflow_conclusion: success
+        name: ${{ env.TARGET }}-${{ env.SUBTARGET }}-config
+        path: config
+
+    - name: Download images
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: ${{ env.WORKFLOW_NAME }}
+        workflow_conclusion: success
+        name: ${{ env.TARGET }}-${{ env.SUBTARGET }}-images
+        path: images
+
+    - name: Download supplementary
+      uses: dawidd6/action-download-artifact@v2
+      with:
+        workflow: ${{ env.WORKFLOW_NAME }}
+        workflow_conclusion: success
+        name: ${{ env.TARGET }}-${{ env.SUBTARGET }}-supplementary
+        path: supplementary
+
+    - name: Check
+      run: |
+        echo "config"
+        ls -l config/
+        echo "images"
+        ls -l images/
+        echo "config"
+        ls -l supplementary/
