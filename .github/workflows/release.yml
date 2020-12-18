@@ -5,7 +5,7 @@ on:
 
 env:
   WORKFLOW_NAME: "build.yml"
-  RELAESE: true
+  RELEASE: true
 
 jobs:
   create_release:
