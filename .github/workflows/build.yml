@@ -34,8 +34,8 @@ jobs:
       run: |
         mkdir -p version
         echo "$(date -u +%Y%m%d-%H%M%S)" > version/timestamp
-        echo "$(cd openwrt-firmware; git rev-parse --short HEAD)" > version/commitid
-        echo "$(cd openwrt; git rev-parse --short HEAD)" > version/openwrt_commitid
+        echo "$(cd openwrt-firmware; git rev-parse --short=10 HEAD)" > version/commitid
+        echo "$(cd openwrt; git rev-parse --short=10 HEAD)" > version/openwrt_commitid
         cat version/timestamp
         cat version/commitid
         cat version/openwrt_commitid
@@ -70,9 +70,12 @@ jobs:
     - name: Checkout repo
       uses: actions/checkout@v2
       with:
-        ref: ${{ env.COMMITID }}
         fetch-depth: 1
         path: openwrt-firmware
+
+    - name: Switch to commit
+      working-directory: openwrt-firmware
+      run: git checkout ${{ env.COMMITID }}
 
     #- name: Cache openwrt folder
     #  uses: actions/cache@v2
