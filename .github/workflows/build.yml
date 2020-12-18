@@ -230,7 +230,7 @@ jobs:
       if: env.BUILD_PREPARE == 'true'
       run: |
         mkdir -p openwrt
-        tar --use-compress-program zstd -d -xf openwrt.tzst -P \
+        tar --use-compress-program "zstd -d" -xf openwrt.tzst -P \
           -C $GITHUB_WORKSPACE/openwrt
 
     - name: Cache sources
