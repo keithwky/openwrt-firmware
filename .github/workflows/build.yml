@@ -148,7 +148,7 @@ jobs:
 
     - name: Archive openwrt folder
       run: |
-         tar --posix --use-compress-program zstd -T0 -cf openwrt.tzst -P \
+         tar --posix --use-compress-program "zstd -T0" -cf openwrt.tzst -P \
           -C $GITHUB_WORKSPACE/openwrt .
 
     - name: Upload openwrt
