@@ -206,9 +206,12 @@ jobs:
       if: env.BUILD_PREPARE == 'true'
       uses: actions/checkout@v2
       with:
-        ref: ${{ env.COMMITID }}
         fetch-depth: 1
         path: openwrt-firmware
+
+    - name: Switch to commit
+      working-directory: openwrt-firmware
+      run: git checkout ${{ env.COMMITID }}
 
     #- name: Cache openwrt folder
     #  if: env.BUILD_PREPARE == 'true'
