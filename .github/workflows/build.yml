@@ -9,7 +9,7 @@ env:
   FEEDS: "packages luci routing telephony freifunk waller"
   BUILD_APPLYPATCH: true
   BUILD_PREPARE: true
-  BUILD_COMPILE: false
+  BUILD_COMPILE: true
 
 jobs:
   get_version:
@@ -76,12 +76,6 @@ jobs:
     - name: Switch to commit
       working-directory: openwrt-firmware
       run: git checkout ${{ env.COMMITID }}
-
-    #- name: Cache openwrt folder
-    #  uses: actions/cache@v2
-    #  with:
-    #    path: openwrt/
-    #    key: openwrt-${{ env.OPENWRT_COMMITID }}-${{ env.COMMITID }}
 
     - name: Checkout OpenWrt repo
       uses: actions/checkout@v2
@@ -212,13 +206,6 @@ jobs:
     - name: Switch to commit
       working-directory: openwrt-firmware
       run: git checkout ${{ env.COMMITID }}
-
-    #- name: Cache openwrt folder
-    #  if: env.BUILD_PREPARE == 'true'
-    #  uses: actions/cache@v2
-    #  with:
-    #    path: openwrt/
-    #    key: openwrt-${{ env.OPENWRT_COMMITID }}-${{ env.COMMITID }}
 
     - name: Download openwrt
       if: env.BUILD_PREPARE == 'true'
