@@ -5,7 +5,7 @@ on:
 
 env:
   WORKFLOW_NAME: "build.yml"
-  RELEASE: true
+  RELEASE: false
 
 jobs:
   create_release:
@@ -31,31 +31,54 @@ jobs:
         cat commitid
         cat openwrt_commitid
         cat openwrt_version
+        echo "TAG_NAME=v$(cat timestamp | sed -n 's/^\([0-9]\{8\}\)-[0-9]\{6\}$/\1/p')" >> $GITHUB_ENV
 
-    - name: Create Release
-      id: create_release
+    - name: Tag commit
       if: env.RELEASE == 'true'
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: tvdias/github-tagger@v0.0.2
       with:
-        tag_name: v${{ env.TIMESTAMP }}
-        release_name: ${{ env.OPENWRT_VERSION }}-${{ env.TIMESTAMP }}
-        body: |
-          Build Time : ${{ env.TIMESTAMP }}
-          OpenWrt Commit : ${{ env.OPENWRT_COMMITID }}
-          OpenWrt Version : ${{ env.OPENWRT_VERSION }}-${{ env.OPENWRT_COMMITID }}
+        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+        tag: ${{ env.TAG_NAME }}
 
-    - name: Output release url file
-      if: env.RELEASE == 'true'
-      run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url
+    - name: Output release files
+      run: |
+        echo "${{ env.TAG_NAME }}" > release_tag
+        echo "${{ env.OPENWRT_VERSION }}-${{ env.TIMESTAMP }}" > release_name
+        echo -e "Build Time : ${{ env.TIMESTAMP }}\nOpenWrt Commit : ${{ env.OPENWRT_COMMITID }}\nOpenWrt Version : ${{ env.OPENWRT_VERSION }}-${{ env.OPENWRT_COMMITID }}\n" > release_body
 
-    - name: Upload release url file
-      if: env.RELEASE == 'true'
+    - name: Upload release files
       uses: actions/upload-artifact@v2
       with:
-        name: release_url
-        path: release_url
+        name: release
+        path: |
+          release_tag
+          release_name
+          release_body
+
+    #- name: Create Release
+    #  id: create_release
+    #  if: env.RELEASE == 'true'
+    #  uses: actions/create-release@v1
+    #  env:
+    #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    #  with:
+    #    tag_name: v${{ env.TIMESTAMP }}
+    #    release_name: ${{ env.OPENWRT_VERSION }}-${{ env.TIMESTAMP }}
+    #    body: |
+    #      Build Time : ${{ env.TIMESTAMP }}
+    #      OpenWrt Commit : ${{ env.OPENWRT_COMMITID }}
+    #      OpenWrt Version : ${{ env.OPENWRT_VERSION }}-${{ env.OPENWRT_COMMITID }}
+
+    #- name: Output release url file
+    #  if: env.RELEASE == 'true'
+    #  run: echo "${{ steps.create_release.outputs.upload_url }}" > release_url
+
+    #- name: Upload release url file
+    #  if: env.RELEASE == 'true'
+    #  uses: actions/upload-artifact@v2
+    #  with:
+    #    name: release_url
+    #    path: release_url
 
   upload_release:
     name: Upload Release Files - ${{ matrix.device }}
@@ -77,19 +100,33 @@ jobs:
             sysupgrade_img: "squashfs-sysupgrade.bin"
 
     steps:
-    - name: Download release url file
-      if: env.RELEASE == 'true'
+    #- name: Download release url file
+    #  if: env.RELEASE == 'true'
+    #  uses: actions/download-artifact@v2
+    #  with:
+    #    name: release_url
+    #    path: release_url/
+
+    #- name: Get upload url
+    #  if: env.RELEASE == 'true'
+    #  working-directory: release_url
+    #  run: |
+    #    echo "UPLOAD_URL=$(cat release_url)" >> $GITHUB_ENV
+    #    cat release_url
+
+    - name: Download release files
       uses: actions/download-artifact@v2
       with:
-        name: release_url
-        path: release_url/
+        name: release
 
-    - name: Get upload url
-      if: env.RELEASE == 'true'
-      working-directory: release_url
+    - name: Get release info
       run: |
-        echo "UPLOAD_URL=$(cat release_url)" >> $GITHUB_ENV
-        cat release_url
+        echo "RELEASE_TAG=$(cat release_tag)" >> $GITHUB_ENV
+        echo "RELEASE_NAME=$(cat release_name)" >> $GITHUB_ENV
+        echo "RELEASE_BODY=$(cat release_body)" >> $GITHUB_ENV
+        cat release_tag
+        cat release_name
+        cat release_body
 
     - name: Download config
       uses: dawidd6/action-download-artifact@v2
@@ -128,90 +165,14 @@ jobs:
         cp -fpR supplementary/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-sha256sums release
         ls -l release
 
-    - name: Upload feeds.buildinfo
+    - name: Create release and upload files
       if: env.RELEASE == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: svenstaro/upload-release-action@v2
       with:
-        upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: release/openwrt-feeds.buildinfo
-        asset_name: openwrt-feeds.buildinfo
-        asset_content_type: application/octet-stream
-
-    - name: Upload version.buildinfo
-      if: env.RELEASE == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: release/openwrt-version.buildinfo
-        asset_name: openwrt-version.buildinfo
-        asset_content_type: application/octet-stream
-
-    - name: Upload config.buildinfo
-      if: env.RELEASE == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: release/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-config.buildinfo
-        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-config.buildinfo
-        asset_content_type: application/octet-stream
-
-    - name: Upload config
-      if: env.RELEASE == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: release/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config
-        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config
-        asset_content_type: application/octet-stream
-
-    - name: Upload manifest
-      if: env.RELEASE == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: release/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}.manifest
-        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}.manifest
-        asset_content_type: application/octet-stream
-
-    - name: Upload factory image
-      if: env.RELEASE == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: release/images/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}-${{ matrix.factory_img }}
-        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}-${{ matrix.factory_img }}
-        asset_content_type: application/octet-stream
-
-    - name: Upload sysupgrade image
-      if: env.RELEASE == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: release/images/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}-${{ matrix.sysupgrade_img }}
-        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}-${{ matrix.sysupgrade_img }}
-        asset_content_type: application/octet-stream
-
-    - name: Upload sha256sums
-      if: env.RELEASE == 'true'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: release/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-sha256sums
-        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-sha256sums
-        asset_content_type: application/octet-stream
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: release/*
+        tag: ${{ env.RELEASE_TAG }}
+        file_glob: true
+        overwrite: true
+        release_name: ${{ env.RELEASE_NAME }}
+        body: ${{ env.RELEASE_BODY }}
