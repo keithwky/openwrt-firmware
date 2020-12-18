@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  WORKFLOW_NAME: "main.yml"
+  WORKFLOW_NAME: "build.yml"
   RELAESE: false
 
 jobs:
@@ -17,7 +17,7 @@ jobs:
       with:
         workflow: ${{ env.WORKFLOW_NAME }}
         workflow_conclusion: success
-        name: version
+        name: openwrt-version
         path: version
 
     - name: Initialization environment
@@ -27,14 +27,10 @@ jobs:
         echo "COMMITID=$(cat commitid)" >> $GITHUB_ENV
         echo "OPENWRT_COMMITID=$(cat openwrt_commitid)" >> $GITHUB_ENV
         echo "OPENWRT_VERSION=$(cat openwrt_version)" >> $GITHUB_ENV
-        HASH=$(cat openwrt_commitid | cut -c-10)
-        VERSION=$(cat openwrt_version | sed "s/-$HASH//")
-        echo "VERSION=$VERSION" >> $GITHUB_ENV
         cat timestamp
         cat commitid
         cat openwrt_commitid
         cat openwrt_version
-        echo $VERSION
 
     - name: Create Release
       id: create_release
@@ -43,12 +39,12 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ env.VERSION }}
-        release_name: ${{ env.VERSION }}
+        tag_name: v${{ env.TIMESTAMP }}
+        release_name: ${{ env.OPENWRT_VERSION }}-${{ env.TIMESTAMP }}
         body: |
           Build Time : ${{ env.TIMESTAMP }}
           OpenWrt Commit : ${{ env.OPENWRT_COMMITID }}
-          OpenWrt Version : ${{ env.OPENWRT_VERSION }}
+          OpenWrt Version : ${{ env.OPENWRT_VERSION }}-${{ env.OPENWRT_COMMITID }}
 
     - name: Output release url file
       if: env.RELEASE == 'true'
@@ -98,7 +94,7 @@ jobs:
       with:
         workflow: ${{ env.WORKFLOW_NAME }}
         workflow_conclusion: success
-        name: ${{ matrix.target }}-${{ matrix.subtarget }}-config
+        name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-config
         path: config
 
     - name: Download images
@@ -106,7 +102,7 @@ jobs:
       with:
         workflow: ${{ env.WORKFLOW_NAME }}
         workflow_conclusion: success
-        name: ${{ matrix.target }}-${{ matrix.subtarget }}-images
+        name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-images
         path: images
 
     - name: Download supplementary
@@ -114,7 +110,7 @@ jobs:
       with:
         workflow: ${{ env.WORKFLOW_NAME }}
         workflow_conclusion: success
-        name: ${{ matrix.target }}-${{ matrix.subtarget }}-supplementary
+        name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-supplementary
         path: supplementary
 
     - name: Check
