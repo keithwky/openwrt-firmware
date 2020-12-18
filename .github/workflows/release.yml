@@ -68,11 +68,13 @@ jobs:
           - device: "netgear_r7800"
             target: "ipq806x"
             subtarget: "generic"
-            config: "R7800"
+            factory_img: "squashfs-factory.img"
+            sysupgrade_img: "squashfs-sysupgrade.bin"
           - device: "netgear_ex6150v2"
             target: "ipq40xx"
             subtarget: "generic"
-            config: "EX6150v2"
+            factory_img: "squashfs-factory.img"
+            sysupgrade_img: "squashfs-sysupgrade.bin"
 
     steps:
     - name: Download release url file
@@ -113,11 +115,71 @@ jobs:
         name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-supplementary
         path: supplementary
 
-    - name: Check
+    - name: Copy files to release folder
       run: |
-        echo "config"
-        ls -l config/
-        echo "images"
-        ls -l images/
-        echo "config"
-        ls -l supplementary/
+        mkdir -p release
+        cp -fpR supplementary/openwrt-feeds.buildinfo release
+        cp -fpR supplementary/openwrt-version.buildinfo release
+        cp -fpR supplementary/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-config.buildinfo release
+        cp -fpR config/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config release
+        cp -fpR supplementary/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}.manifest release
+        cp -fpR images/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}-${{ matrix.factory_img }} release
+        cp -fpR images/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}-${{ matrix.sysupgrade_img }} release
+        cp -fpR supplementary/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-sha256sums release
+        ls -l release
+
+    - name: Upload feeds.buildinfo
+      if: env.RELEASE == 'true'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ env.UPLOAD_URL }}
+        asset_path: supplementary/openwrt-feeds.buildinfo
+        asset_name: openwrt-feeds.buildinfo
+        asset_content_type: application/octet-stream
+
+    - name: Upload version.buildinfo
+      if: env.RELEASE == 'true'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ env.UPLOAD_URL }}
+        asset_path: supplementary/openwrt-version.buildinfo
+        asset_name: openwrt-version.buildinfo
+        asset_content_type: application/octet-stream
+
+    - name: Upload config.buildinfo
+      if: env.RELEASE == 'true'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ env.UPLOAD_URL }}
+        asset_path: supplementary/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-config.buildinfo
+        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-config.buildinfo
+        asset_content_type: application/octet-stream
+
+    - name: Upload config
+      if: env.RELEASE == 'true'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ env.UPLOAD_URL }}
+        asset_path: config/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config
+        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config
+        asset_content_type: application/octet-stream
+
+    - name: Upload config
+      if: env.RELEASE == 'true'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ env.UPLOAD_URL }}
+        asset_path: config/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config
+        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config
+        asset_content_type: application/octet-stream
+
