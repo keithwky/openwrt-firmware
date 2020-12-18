@@ -34,8 +34,8 @@ jobs:
       run: |
         mkdir -p version
         echo "$(date -u +%Y%m%d-%H%M%S)" > version/timestamp
-        echo "$(cd openwrt-firmware; git rev-parse HEAD)" > version/commitid
-        echo "$(cd openwrt; git rev-parse HEAD)" > version/openwrt_commitid
+        echo "$(cd openwrt-firmware; git rev-parse --short HEAD)" > version/commitid
+        echo "$(cd openwrt; git rev-parse --short HEAD)" > version/openwrt_commitid
         cat version/timestamp
         cat version/commitid
         cat version/openwrt_commitid
@@ -43,7 +43,7 @@ jobs:
     - name: Upload version
       uses: actions/upload-artifact@v2
       with:
-        name: version
+        name: openwrt-version
         path: version/
         
   prepare:
@@ -54,7 +54,7 @@ jobs:
     - name: Download version
       uses: actions/download-artifact@v2
       with:
-        name: version
+        name: openwrt-version
         path: version/
 
     - name: Initialization environment
@@ -74,11 +74,11 @@ jobs:
         fetch-depth: 1
         path: openwrt-firmware
 
-    - name: Cache openwrt folder
-      uses: actions/cache@v2
-      with:
-        path: openwrt/
-        key: openwrt-${{ env.OPENWRT_COMMITID }}-${{ env.COMMITID }}
+    #- name: Cache openwrt folder
+    #  uses: actions/cache@v2
+    #  with:
+    #    path: openwrt/
+    #    key: openwrt-${{ env.OPENWRT_COMMITID }}-${{ env.COMMITID }}
 
     - name: Checkout OpenWrt repo
       uses: actions/checkout@v2
@@ -92,9 +92,9 @@ jobs:
       working-directory: openwrt
       run: |
         git checkout ${{ env.OPENWRT_COMMITID }}
-        VERSION=$(./scripts/getver.sh)
+        VERSION=$(./scripts/getver.sh | sed -n 's/^\(r[0-9]\+\)-.*/\1/p')
         cd $GITHUB_WORKSPACE/version
-        echo ${{ env.OPENWRT_REPO_BRANCH }}-$VERSION-${{ env.TIMESTAMP }} > openwrt_version
+        echo ${{ env.OPENWRT_REPO_BRANCH }}-$VERSION > openwrt_version
         cat openwrt_version
 
     - name: Upload version
@@ -143,6 +143,17 @@ jobs:
         ./scripts/feeds update -i
         ./scripts/feeds install -a
 
+    - name: Archive openwrt folder
+      run: |
+         tar --posix --use-compress-program zstd -T0 -cf openwrt.tzst -P \
+          -C $GITHUB_WORKSPACE/openwrt .
+
+    - name: Upload openwrt
+      uses: actions/upload-artifact@v2
+      with:
+        name: openwrt
+        path: openwrt.tzst
+
   build:
     name: Build ${{ matrix.device }}
     needs: [prepare]
@@ -165,7 +176,7 @@ jobs:
       if: env.BUILD_PREPARE == 'true'
       uses: actions/download-artifact@v2
       with:
-        name: version
+        name: openwrt-version
         path: version/
 
     - name: Initialization environment
@@ -196,12 +207,25 @@ jobs:
         fetch-depth: 1
         path: openwrt-firmware
 
-    - name: Cache openwrt folder
+    #- name: Cache openwrt folder
+    #  if: env.BUILD_PREPARE == 'true'
+    #  uses: actions/cache@v2
+    #  with:
+    #    path: openwrt/
+    #    key: openwrt-${{ env.OPENWRT_COMMITID }}-${{ env.COMMITID }}
+
+    - name: Download openwrt
       if: env.BUILD_PREPARE == 'true'
-      uses: actions/cache@v2
+      uses: actions/download-artifact@v2
       with:
-        path: openwrt/
-        key: openwrt-${{ env.OPENWRT_COMMITID }}-${{ env.COMMITID }}
+        name: openwrt
+
+    - name: Extract openwrt
+      if: env.BUILD_PREPARE == 'true'
+      run: |
+        mkdir -p openwrt
+        tar --use-compress-program zstd -d -xf openwrt.tzst -P \
+          -C $GITHUB_WORKSPACE/openwrt
 
     - name: Cache sources
       id: cache-dl
@@ -246,8 +270,8 @@ jobs:
         #echo -e "\n---- diffconfig ----\n"
 
         mkdir -p $GITHUB_WORKSPACE/config
-        cp -fpR .config $GITHUB_WORKSPACE/config/${{ matrix.device }}.config
-        cp -fpR .diffconfig $GITHUB_WORKSPACE/config/${{ matrix.device }}.diffconfig
+        cp -fpR .config $GITHUB_WORKSPACE/config/openwrt-${{ env.TARGET }}-${{ env.SUBTARGET }}.config
+        cp -fpR .diffconfig $GITHUB_WORKSPACE/config/openwrt-${{ env.TARGET }}-${{ env.SUBTARGET }}.diffconfig
 
     - name: Download package
       if: env.BUILD_PREPARE == 'true'
@@ -307,11 +331,25 @@ jobs:
       run: |
         make json_overview_image_info V=s
 
+    - name: Rename buildinfo
+      if: env.BUILD_COMPILE == 'true'
+      working-directory: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/
+      run: |
+        mv -f config.buildinfo openwrt-${{ env.TARGET }}-${{ env.SUBTARGET }}-config.buildinfo
+        mv -f feeds.buildinfo openwrt-feeds.buildinfo
+        mv -f version.buildinfo openwrt-version.buildinfo
+
     - name: Checksum
       if: env.BUILD_COMPILE == 'true'
       working-directory: openwrt
       run: |
         make checksum V=s
+
+    - name: Rename sha256sums
+      if: env.BUILD_COMPILE == 'true'
+      working-directory: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/
+      run: |
+        mv -f sha256sums openwrt-${{ env.TARGET }}-${{ env.SUBTARGET }}-sha256sums
 
     - name: Sanitize target
       run: echo "target_sani=${{ env.TARGET }}-${{ env.SUBTARGET }}" >> "$GITHUB_ENV"
@@ -320,14 +358,14 @@ jobs:
       if: env.BUILD_COMPILE == 'true'
       uses: actions/upload-artifact@v2
       with:
-        name: ${{ env.target_sani }}-images
+        name: openwrt-${{ env.target_sani }}-images
         path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/openwrt-${{ env.TARGET }}-*
 
     - name: Upload packages
       if: env.BUILD_COMPILE == 'true'
       uses: actions/upload-artifact@v2
       with:
-        name: ${{ env.target_sani }}-packages
+        name: openwrt-${{ env.target_sani }}-packages
         path: |
           openwrt/bin/**/*.ipk
           !openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
@@ -336,30 +374,30 @@ jobs:
       if: env.BUILD_COMPILE == 'true'
       uses: actions/upload-artifact@v2
       with:
-        name: ${{ env.target_sani }}-kmods
+        name: openwrt-${{ env.target_sani }}-kmods
         path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/packages/kmod-*.ipk
 
     - name: Upload supplementary
       if: env.BUILD_COMPILE == 'true'
       uses: actions/upload-artifact@v2
       with:
-        name: ${{ env.target_sani }}-supplementary
+        name: openwrt-${{ env.target_sani }}-supplementary
         path: |
           openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.buildinfo
           openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.json
           openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*.manifest
-          openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/sha256sums*
+          openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/*sha256sums*
 
     - name: Upload logs
       if: env.BUILD_COMPILE == 'true'
       uses: actions/upload-artifact@v2
       with:
-        name: ${{ env.target_sani }}-logs
+        name: openwrt-${{ env.target_sani }}-logs
         path: openwrt/logs/
 
     - name: Upload config
       if: env.BUILD_COMPILE == 'true'
       uses: actions/upload-artifact@v2
       with:
-        name: ${{ env.target_sani }}-config
+        name: openwrt-${{ env.target_sani }}-config
         path: config/
