@@ -5,7 +5,7 @@ on:
 
 env:
   WORKFLOW_NAME: "build.yml"
-  RELAESE: false
+  RELAESE: true
 
 jobs:
   create_release:
@@ -135,7 +135,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: supplementary/openwrt-feeds.buildinfo
+        asset_path: release/openwrt-feeds.buildinfo
         asset_name: openwrt-feeds.buildinfo
         asset_content_type: application/octet-stream
 
@@ -146,7 +146,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: supplementary/openwrt-version.buildinfo
+        asset_path: release/openwrt-version.buildinfo
         asset_name: openwrt-version.buildinfo
         asset_content_type: application/octet-stream
 
@@ -157,7 +157,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: supplementary/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-config.buildinfo
+        asset_path: release/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-config.buildinfo
         asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-config.buildinfo
         asset_content_type: application/octet-stream
 
@@ -168,18 +168,50 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: config/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config
+        asset_path: release/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config
         asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config
         asset_content_type: application/octet-stream
 
-    - name: Upload config
+    - name: Upload manifest
       if: env.RELEASE == 'true'
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ env.UPLOAD_URL }}
-        asset_path: config/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config
-        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}.config
+        asset_path: release/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}.manifest
+        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}.manifest
         asset_content_type: application/octet-stream
 
+    - name: Upload factory image
+      if: env.RELEASE == 'true'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ env.UPLOAD_URL }}
+        asset_path: release/images/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}-${{ matrix.factory_img }}
+        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}-${{ matrix.factory_img }}
+        asset_content_type: application/octet-stream
+
+    - name: Upload sysupgrade image
+      if: env.RELEASE == 'true'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ env.UPLOAD_URL }}
+        asset_path: release/images/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}-${{ matrix.sysupgrade_img }}
+        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-${{ matrix.device }}-${{ matrix.sysupgrade_img }}
+        asset_content_type: application/octet-stream
+
+    - name: Upload sha256sums
+      if: env.RELEASE == 'true'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ env.UPLOAD_URL }}
+        asset_path: release/openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-sha256sums
+        asset_name: openwrt-${{ matrix.target }}-${{ matrix.subtarget }}-sha256sums
+        asset_content_type: application/octet-stream
