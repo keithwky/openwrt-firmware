@@ -33,41 +33,34 @@ jobs:
         cat openwrt_version
         echo "TAG_NAME=v$(cat timestamp | sed -n 's/^\([0-9]\{8\}\)-[0-9]\{6\}$/\1/p')" >> $GITHUB_ENV
 
-    - name: Tag commit
+    #- name: Tag commit
+    #  if: env.RELEASE == 'true'
+    #  uses: tvdias/github-tagger@v0.0.2
+    #  with:
+    #    repo-token: "${{ secrets.GITHUB_TOKEN }}"
+    #    tag: ${{ env.TAG_NAME }}
+
+    - name: Create Release
       if: env.RELEASE == 'true'
-      uses: tvdias/github-tagger@v0.0.2
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        repo-token: "${{ secrets.GITHUB_TOKEN }}"
-        tag: ${{ env.TAG_NAME }}
+        tag_name: ${{ env.TAG_NAME }}
+        release_name: ${{ env.OPENWRT_VERSION }}-${{ env.TIMESTAMP }}
+        body: |
+          Build Time : ${{ env.TIMESTAMP }}
+          OpenWrt Commit : ${{ env.OPENWRT_COMMITID }}
+          OpenWrt Version : ${{ env.OPENWRT_VERSION }}-${{ env.OPENWRT_COMMITID }}
 
-    - name: Output release files
-      run: |
-        echo "${{ env.TAG_NAME }}" > release_tag
-        echo "${{ env.OPENWRT_VERSION }}-${{ env.TIMESTAMP }}" > release_name
-        echo -e "Build Time : ${{ env.TIMESTAMP }}\nOpenWrt Commit : ${{ env.OPENWRT_COMMITID }}\nOpenWrt Version : ${{ env.OPENWRT_VERSION }}-${{ env.OPENWRT_COMMITID }}\n" > release_body
+    - name: Output release tag file
+      run: echo "${{ env.TAG_NAME }}" > release_tag
 
-    - name: Upload release files
+    - name: Upload release tag file
       uses: actions/upload-artifact@v2
       with:
-        name: release
-        path: |
-          release_tag
-          release_name
-          release_body
-
-    #- name: Create Release
-    #  id: create_release
-    #  if: env.RELEASE == 'true'
-    #  uses: actions/create-release@v1
-    #  env:
-    #    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    #  with:
-    #    tag_name: v${{ env.TIMESTAMP }}
-    #    release_name: ${{ env.OPENWRT_VERSION }}-${{ env.TIMESTAMP }}
-    #    body: |
-    #      Build Time : ${{ env.TIMESTAMP }}
-    #      OpenWrt Commit : ${{ env.OPENWRT_COMMITID }}
-    #      OpenWrt Version : ${{ env.OPENWRT_VERSION }}-${{ env.OPENWRT_COMMITID }}
+        name: release_tag
+        path: release_tag
 
     #- name: Output release url file
     #  if: env.RELEASE == 'true'
@@ -117,16 +110,12 @@ jobs:
     - name: Download release files
       uses: actions/download-artifact@v2
       with:
-        name: release
+        name: release_tag
 
     - name: Get release info
       run: |
         echo "RELEASE_TAG=$(cat release_tag)" >> $GITHUB_ENV
-        echo "RELEASE_NAME=$(cat release_name)" >> $GITHUB_ENV
-        echo "RELEASE_BODY=$(cat release_body)" >> $GITHUB_ENV
         cat release_tag
-        cat release_name
-        cat release_body
 
     - name: Download config
       uses: dawidd6/action-download-artifact@v2
@@ -174,5 +163,3 @@ jobs:
         tag: ${{ env.RELEASE_TAG }}
         file_glob: true
         overwrite: true
-        release_name: ${{ env.RELEASE_NAME }}
-        body: ${{ env.RELEASE_BODY }}
