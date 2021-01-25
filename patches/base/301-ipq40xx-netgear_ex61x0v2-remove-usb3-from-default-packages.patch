@@ -1,8 +1,8 @@
-diff --git a/target/linux/ipq40xx/image/Makefile b/target/linux/ipq40xx/image/Makefile
+diff --git a/target/linux/ipq40xx/image/generic.mk b/target/linux/ipq40xx/image/generic.mk
 index 4572ab461d..f03a7e5703 100644
---- a/target/linux/ipq40xx/image/Makefile
-+++ b/target/linux/ipq40xx/image/Makefile
-@@ -599,6 +599,7 @@ define Device/netgear_ex61x0v2
+--- a/target/linux/ipq40xx/image/generic.mk
++++ b/target/linux/ipq40xx/image/generic.mk
+@@ -620,6 +620,7 @@ define Device/netgear_ex61x0v2
  	NETGEAR_HW_ID := 29765285+16+0+128+2x2
  	IMAGE_SIZE := 14400k
  	SOC := qcom-ipq4018
