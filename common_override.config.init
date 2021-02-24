@@ -29,11 +29,15 @@ CONFIG_FEED_waller=m
 # CONFIG_BUSYBOX_CONFIG_FEATURE_LESS_REGEXP is not set
 # CONFIG_BUSYBOX_CONFIG_FEATURE_LESS_WINCH is not set
 
+### Build also ath10k mainline .ipk
+### (disable this if you use the below section to fully switch to mainline)
+# CONFIG_PACKAGE_kmod-ath10k is not set
+
 # Add-on programs
 # CONFIG_PACKAGE_ccrypt is not set
 # CONFIG_PACKAGE_irqbalance is not set
 # CONFIG_PACKAGE_tcpdump-mini is not set
-# CONFIG_PACKAGE_wget is not set
+# CONFIG_PACKAGE_wget-ssl is not set
 CONFIG_LIBCURL_NGHTTP2=y
 ## CONFIG_PACKAGE_iperf3=y
 CONFIG_PACKAGE_speedtest-netperf=y
@@ -73,6 +77,7 @@ CONFIG_PACKAGE_ca-bundle=y
 # Luci (SSL from OpenSSL)
 # CONFIG_PACKAGE_luci-app-ddns is not set
 # CONFIG_PACKAGE_luci-app-sqm is not set
+# CONFIG_PACKAGE_luci-app-uhttpd is not set
 # CONFIG_PACKAGE_luci-app-upnp is not set
 # CONFIG_PACKAGE_luci-app-wol is not set
 CONFIG_LUCI_JSMIN=y
@@ -81,6 +86,7 @@ CONFIG_PACKAGE_uhttpd-mod-lua=y
 CONFIG_PACKAGE_uhttpd-mod-ubus=y
 
 # Luci statistics
+# CONFIG_PACKAGE_collectd-mod-dhcpleases is not set
 # CONFIG_PACKAGE_collectd-mod-sqm is not set
 # CONFIG_PACKAGE_collectd-mod-uptime is not set
 
