@@ -2,10 +2,11 @@ CONFIG_TARGET_ipq40xx=y
 CONFIG_TARGET_ipq40xx_generic_DEVICE_netgear_ex6150v2=y
 
 # Mainline ath10k wifi firmware and driver instead of -ct
+# Build also ath10k-ct wifi firmware and driver .ipk
 CONFIG_PACKAGE_ath10k-firmware-qca4019=y
-# CONFIG_PACKAGE_ath10k-firmware-qca4019-ct is not set
+CONFIG_PACKAGE_ath10k-firmware-qca4019-ct=m
 CONFIG_PACKAGE_kmod-ath10k=y
-# CONFIG_PACKAGE_kmod-ath10k-ct is not set
+CONFIG_PACKAGE_kmod-ath10k-ct=m
 
 ## # Add-on programs
 ## CONFIG_PACKAGE_irqbalance=y
