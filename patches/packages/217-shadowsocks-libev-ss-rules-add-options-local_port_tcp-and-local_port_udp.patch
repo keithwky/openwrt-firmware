@@ -2,26 +2,26 @@ diff --git a/net/shadowsocks-libev/files/shadowsocks-libev.init b/net/shadowsock
 index 79ec2e8b3..0d1abc82f 100644
 --- a/net/shadowsocks-libev/files/shadowsocks-libev.init
 +++ b/net/shadowsocks-libev/files/shadowsocks-libev.init
-@@ -113,7 +121,6 @@ ss_rules() {
+@@ -115,7 +123,6 @@ ss_rules_cb() {
+ ss_rules_nft_gen() {
  	local cfg="ss_rules"
- 	local bin="$ss_bindir/ss-rules"
  	local cfgtype
 -	local local_port_tcp local_port_udp
- 	local args
+ 	local remote_servers
  
- 	[ -x "$bin" ] || return 1
-@@ -127,8 +134,8 @@ ss_rules() {
+ 	[ -s "$ssrules_uc" ] || return 1
+@@ -127,8 +134,8 @@ ss_rules_nft_gen() {
  	validate_ss_rules_section "$cfg" || return 1
- 	[ "$disabled" = 0 ] || return 0
+ 	[ "$disabled" = 0 ] || return 2
  
 -	eval local_port_tcp="\$ss_rules_redir_tcp_$redir_tcp"
 -	eval local_port_udp="\$ss_rules_redir_udp_$redir_udp"
 +	[ -z "$local_port_tcp" ] && eval local_port_tcp="\$ss_rules_redir_tcp_$redir_tcp"
 +	[ -z "$local_port_udp" ] && eval local_port_udp="\$ss_rules_redir_udp_$redir_udp"
  	[ -n "$local_port_tcp" -o -n "$local_port_udp" ] || return 1
- 	ss_redir_servers="$(echo "$ss_redir_servers" | tr ' ' '\n' | sort -u)"
- 	[ "$dst_forward_recentrst" = 0 ] || args="$args --dst-forward-recentrst"
-@@ -266,6 +273,8 @@ validate_ss_rules_section() {
+ 	remote_servers="$(echo $ss_redir_servers \
+ 		| tr ' ' '\n' \
+@@ -285,6 +292,8 @@ validate_ss_rules_section() {
  		'disabled:bool:0' \
  		'redir_tcp:uci("shadowsocks-libev", "@ss_redir")' \
  		'redir_udp:uci("shadowsocks-libev", "@ss_redir")' \

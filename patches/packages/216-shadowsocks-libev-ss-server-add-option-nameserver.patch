@@ -2,7 +2,7 @@ diff --git a/net/shadowsocks-libev/files/shadowsocks-libev.init b/net/shadowsock
 index 79ec2e8b3..0d1abc82f 100644
 --- a/net/shadowsocks-libev/files/shadowsocks-libev.init
 +++ b/net/shadowsocks-libev/files/shadowsocks-libev.init
-@@ -24,7 +24,14 @@ ss_mkjson_server_conf() {
+@@ -27,7 +27,14 @@ ss_mkjson_server_conf() {
  }
  
  ss_mkjson_server_conf_() {
@@ -17,7 +17,7 @@ index 79ec2e8b3..0d1abc82f 100644
  	[ -z "$server" ] || json_add_string server "$server"
  	json_add_int server_port "$server_port"
  	[ -z "$method" ] || json_add_string method "$method"
-@@ -32,6 +39,7 @@ ss_mkjson_server_conf_() {
+@@ -35,6 +42,7 @@ ss_mkjson_server_conf_() {
  	[ -z "$password" ] || json_add_string password "$password"
  	[ -z "$plugin" ] || json_add_string plugin "$plugin"
  	[ -z "$plugin_opts" ] || json_add_string plugin_opts "$plugin_opts"
@@ -25,7 +25,7 @@ index 79ec2e8b3..0d1abc82f 100644
  }
  
  ss_mkjson_ss_local_conf() {
-@@ -288,7 +297,8 @@ validate_ss_server_section() {
+@@ -307,7 +315,8 @@ validate_ss_server_section() {
  		'local_address:ipaddr' \
  		'local_ipv4_address:ip4addr' \
  		'local_ipv6_address:ip6addr' \
