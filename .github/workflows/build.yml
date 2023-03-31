@@ -241,7 +241,7 @@ jobs:
               cd "$FEED_DIR/$feed";
               echo "$feed"
               [ -f "$(git rev-parse --git-dir)"/shallow ] && git fetch --unshallow
-              COMMITID=$(cat "$BUILDINFO" | sed -n "s#^src-git $feed .*\^\(.\{7\}\)#\1#p" 2>/dev/null)
+              COMMITID=$(cat "$BUILDINFO" | sed -n "s#^src-git.* $feed .*\^\(.\{7\}\)#\1#p" 2>/dev/null)
               echo "PREV_COMMITID :  $COMMITID"
               [ -z "$COMMITID" ] || $GIT_SHOW_LOG "$COMMITID..HEAD" >> "$LOGFILE"
             )
